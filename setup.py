@@ -12,9 +12,6 @@ setup(name='statsmed',
         install_requires=[
             'numpy',
             'scipy>=1.10.1',
-            'math',
-            'sys',
-            'collections',
             'matplotlib>=3.6.2'
         ],
         zip_safe=False,
