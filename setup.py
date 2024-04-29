@@ -5,7 +5,7 @@ setup(name='statsmed',
         version='0.0.1',
         description='Statistics with Figures for medical data analysis',
         url='https://github.com/segemart/statsmed',
-        author='Martin Segeroth'
+        author='Martin Segeroth',
         python_requires='>=3.8.8',
         license='Apache 2.0',
         packages=find_packages(),
