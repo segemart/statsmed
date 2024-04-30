@@ -5,14 +5,42 @@ import sys
 from collections import Counter
 import matplotlib.pyplot as plt
 
-def stdnormvert_test(x):
-    # wenn die zweite zahl < 0.05 nicht normv
-    [t1,z1] = scipy.stats.kstest((x - np.mean(x))/np.std(x,ddof = 1),scipy.stats.norm.cdf)
+'''test of normality using the: 1. Shapiro-Wilk-Test and 2. Kolmogorow-Smirnow-Test
+Kolmogorow-Smirnow-Test requires normalization but not Shapiro-Wilk-Test
+Input: array of test-data - please exclude NaN oder None Values.
+Output: 0 if both tests do not indicate a significant difference from a normal distribution and 1 if at least ones does,
+        0 if Shapiro-Wilk-Test does not indicate a significant difference from a normal distribution and 1 if does,
+        0 if Kolmogorow-Smirnow-Test does not indicate a significant difference from a normal distribution and 1 if does,
+        Test-statistic of Shapiro-Wilk-Test,
+        p-value of Shapiro-Wilk-Test,
+        test-statistic of Kolmogorow-Smirnow-Test,
+        p-value of Kolmogorow-Smirnow-Test
+'''
+def stdnorm_test(x):
+    SWn = 0
+    [t1,z1] = scipy.stats.shapiro(x)
     if z1 < 0.05:
-        print('nicht normalverteilt')
+        SWn = 1
+        print(f"Shapiro-Wilk: No normal dsitribution (p-value = {z1:.4f})")
     else:
-        print('normalverteilt')
-    return [t1,z1]
+        SWn = 0
+        print(f"Shapiro-Wilk: Normal dsitribution (p-value = {z1:.2f} \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
+    KSn = 0
+    [t2,z2] = scipy.stats.kstest((x - np.mean(x))/np.std(x,ddof = 1),scipy.stats.norm.cdf)
+    if z2 < 0.05:
+        KSn = 1
+        print(f"Kolmogorow-Smirnow: No normal dsitribution (p-value = {z2:.4f})")
+    else:
+        KSn = 0
+        print(f"Kolmogorow-Smirnow: Normal dsitribution (p-value = {z2:.2f} \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
+    Fn = 0
+    if (z1 < 0.05) or (z2 < 0.05):
+        Fn = 1
+        print("At least one test indicates no normal distribution")
+    else:
+        Fn = 0
+        print("Both tests do not indicate a significant difference from a normal distribution")
+    return [Fn,SWn,KSn,t1,z1,t2,z2]
 
 def get_CI_normv(x):
     n = len(x)
