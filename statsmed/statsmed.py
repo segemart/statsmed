@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 '''test of normality using the: 1. Shapiro-Wilk-Test and 2. Kolmogorow-Smirnow-Test
 Kolmogorow-Smirnow-Test requires normalization but not Shapiro-Wilk-Test
-Input: array of test-data - please exclude NaN oder None Values.
+Input: array of test-data - please exclude NaN or None Values.
 Output: 0 if both tests do not indicate a significant difference from a normal distribution and 1 if at least ones does,
         0 if Shapiro-Wilk-Test does not indicate a significant difference from a normal distribution and 1 if does,
         0 if Kolmogorow-Smirnow-Test does not indicate a significant difference from a normal distribution and 1 if does,
@@ -42,7 +42,59 @@ def stdnorm_test(x):
         print("Both tests do not indicate a significant difference from a normal distribution")
     return [Fn,SWn,KSn,t1,z1,t2,z2]
 
-def get_CI_normv(x):
+''' Descriptive statistic of data depending on their dirstribution:
+Input: array of test-data - please exclude NaN or None Values; Number of decimals; mode (what to return)
+Output: depends on mode if mode = all the function prints mean with standard deviation and confidence interval
+                                  as well as median with inter-quartile range and pseudomedian with confidence interval of the signed-rank distribution
+                        if mode = normal distribution - only the mean with standard deviation and confidence interval is given
+                        if mode = no normal distribution - median with inter-quartile range and pseudomedian with confidence interval of the signed-rank distribution is returned
+                        if something else is given the respective output depends on whether the data is normal distributed due to stdnorm_test
+        the output is rounded to the number of given decimals
+        it also returns a numpy array containing all values depending on mode
+'''
+def get_desc(x,N_of_decimals = 2,mode = 'choose'):
+    distr = stdnorm_test(x)
+    mean_std = np.array([np.mean(x),np.std(x), np.NaN])
+    normald = get_CI_normd(x)
+    IQRd = np.append(np.array([np.percentile(x,50)]),np.percentile(x, (25,75)))
+    SignRd = get_CI_signrankdist_CC(x)
+    if mode == 'all':
+        print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
+        print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
+        print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
+        print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
+        res = np.stack((mean_std,normald, IQRd, SignRd), axis=0)
+        res = np.round(res,N_of_decimals)
+        return res
+    elif mode == 'normal distribution':
+        print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
+        print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
+        res = np.stack((mean_std,normald), axis=0)
+        res = np.round(res,N_of_decimals)
+        return res
+    elif mode == 'no normal distribution':
+        print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
+        print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
+        res = np.stack((IQRd, SignRd), axis=0)
+        res = np.round(res,N_of_decimals)
+        return res
+    else:
+        if distr[0] == 0:
+            print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
+            print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
+            res = np.stack((mean_std,normald), axis=0)
+            res = np.round(res,N_of_decimals)
+            return res
+        else:
+            print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
+            print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
+            res = np.stack((IQRd, SignRd), axis=0)
+            res = np.round(res,N_of_decimals)
+            return res
+
+
+
+def get_CI_normd(x):
     n = len(x)
     t1 = scipy.stats.t.ppf(1-0.025, n-1)
     return np.append(np.mean(x),np.mean(x) + np.array([-t1,t1])*np.std(x,ddof = 1)/np.sqrt(n))
@@ -144,21 +196,6 @@ def relation_CI_signrankdist_CC(x,y):
 def relation_CI_signrankdist_CC_abs(x,y):
     r = np.abs((x-y))/x
     return get_CI_signrankdist_CC(r)
-
-def get_desc(u,mode = 'choose'):
-    print("u" + str(np.sum(np.isnan(u))))
-    u = u.dropna()
-    [t1,z1] = scipy.stats.kstest((u - np.mean(u))/np.std(u,ddof = 1),scipy.stats.norm.cdf)
-    if mode == 'both':
-        return [['normalverteilt', np.mean(u), scipy.stats.t.interval(alpha=0.95, df=len(u)-1, loc=np.mean(u), scale=scipy.stats.sem(u))],['nicht normalverteilt', np.percentile(u,50), np.percentile(u, (25,75))]]
-    if mode == 'np':
-        return ['nicht normalverteilt', np.percentile(u,50), np.percentile(u, (25,75))]
-    if mode == 'p':
-        return ['normalverteilt', np.mean(u), scipy.stats.t.interval(alpha=0.95, df=len(u)-1, loc=np.mean(u), scale=scipy.stats.sem(u))]
-    if z1 <= 0.05:
-        return ['nicht normalverteilt', np.percentile(u,50), np.percentile(u, (25,75))]
-    else:
-        return ['normalverteilt', np.mean(u), scipy.stats.t.interval(alpha=0.95, df=len(u)-1, loc=np.mean(u), scale=scipy.stats.sem(u))]
 
 def comp_two_gr(u1,u2, mode = 'choose'):
     # 1 nicht normalverteilt = nicht parametrisch (np)
