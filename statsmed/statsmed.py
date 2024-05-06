@@ -4,6 +4,7 @@ import math
 import sys
 from collections import Counter
 import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
 
 '''test of normality using the: 1. Shapiro-Wilk-Test and 2. Kolmogorow-Smirnow-Test
 Kolmogorow-Smirnow-Test requires normalization but not Shapiro-Wilk-Test
@@ -91,6 +92,114 @@ def get_desc(x,N_of_decimals = 2,mode = 'choose'):
             res = np.stack((IQRd, SignRd), axis=0)
             res = np.round(res,N_of_decimals)
             return res
+
+def report_p_value(p,Np_of_decimals = 3):
+    if p >= 0.06:
+        return "p = " + str(np.round(p,2))
+    elif (p < 0.06) and (p > 0.05):
+        return "p = " + str(np.round(p,3))
+    elif (p <= 0.05) and p >= np.power(1/10,Np_of_decimals):
+        return "p = " + str(np.round(p,Np_of_decimals))
+    else:
+        return f"p < {np.round(np.power(1/10,Np_of_decimals),Np_of_decimals)}"
+
+
+''' Correlation of two groups:
+Input: two arrays of test-data (x and y) - please exclude NaN or None Values; Number of decimals; mode (what to return); Number of decimals for significant p values
+Output: depends on mode if mode = all the function prints Spearman correlation and Pearson correlation
+                        if mode = normal distribution - only the Pearson correlation is given
+                        if mode = no normal distribution - Spearman correlation is returned
+                        if something else is given the respective output depends on whether the data is normal distributed (Pearson correlation) or not normal distributed (Spearman correlation) due to stdnorm_test
+        the output for each line of the output: 0 (Pearson) or 1 (Spearman); r-value rounded to number of given decimals; p-value rounded to number of decimals for significant p values;
+                        95%-confidence interval of r-value rounded to number of given decimals
+        the given lines depend on the mode
+'''
+def corr_two_gr(x,y,N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3):
+    print('Testing normal distribution of first variable:')
+    x_distr = stdnorm_test(x)
+    print('Testing normal distribution of second variable:')
+    y_distr = stdnorm_test(y)
+    [r,p] = scipy.stats.spearmanr(x, y)
+    s2 = (1 + np.power(r,2)/2)/(len(x)-3)
+    confrs = [np.tanh(np.arctanh(r) - np.sqrt(s2) * scipy.stats.norm.ppf(0.975)) , np.tanh(np.arctanh(r) + np.sqrt(s2) * scipy.stats.norm.ppf(0.975))]
+    a = np.array([1,r,p,confrs[0],confrs[1]])
+    a = np.expand_dims(a, axis=0)
+    [r,p] = scipy.stats.pearsonr(x, y)
+    zr = np.arctanh(r)
+    se = 1/np.sqrt(len(x)-3)
+    z = scipy.stats.norm.ppf(1-0.05/2)
+    lo_z, hi_z = zr-z*se, zr+z*se
+    confrr = np.tanh((lo_z, hi_z))
+    a = np.append(a,np.expand_dims(np.array([0,r,p,confrr[0],confrr[1]]), axis=0),axis = 0)
+    if mode == 'all':
+        print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
+        print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
+        print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
+        print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
+        return np.stack([a[:,0],np.round(a[:,1],2),np.round(a[:,2],3),np.round(a[:,3],2),np.round(a[:,4],2)],axis = 1)
+    elif mode == 'normal distribution':
+        print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
+        print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
+        return np.stack([a[1,0],np.round(a[1,1],2),np.round(a[1,2],3),np.round(a[1,3],2),np.round(a[1,4],2)],axis = 1)
+    elif mode == 'no normal distribution':
+        print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
+        print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
+        return np.stack([a[0,0],np.round(a[0,1],2),np.round(a[0,2],3),np.round(a[0,3],2),np.round(a[0,4],2)],axis = 1)
+    else:
+        if (x_distr[0] == 0) and (y_distr[0] == 0):
+            print('The distribution of both variables show no significant difference from a normal distribution. Thus Pearson correlation is performed.')
+            print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
+            print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
+            return np.stack([a[1,0],np.round(a[1,1],2),np.round(a[1,2],3),np.round(a[1,3],2),np.round(a[1,4],2)],axis = 1)
+        else:
+            print('The distribution of at least one of both variables shows a significant difference from a normal distribution. Thus Spearman correlation is performed.')
+            print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
+            print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
+            return np.stack([a[0,0],np.round(a[0,1],2),np.round(a[0,2],3),np.round(a[0,3],2),np.round(a[0,4],2)],axis = 1)
+
+
+def func_fit(x,a,b):
+    return a*x+b
+
+''' Makes a scatter plot of the x and y data with a linear regression for visualization and gives the correlations (Spearman and Pearson):
+Input: two arrays of test-data (x and y) - please exclude NaN or None Values; Figure; Title; Label of x-axis; Label of y-axis; color; Number of decimals; mode (what to return); Number of decimals for significant p values
+'''
+def corr_scatter_figure(x,y,fig_x,title='',x_label='',y_label='', color = 'green',N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3):
+    plt.scatter(x,y, color = color,s=10, alpha=0.2)
+    popt, pcov = scipy.optimize.curve_fit(func_fit, x, y)
+    plt.plot(x,func_fit(x,*popt), color = color,linewidth=3)
+    sigma = np.sqrt(np.diagonal(pcov))
+    bound_upper = func_fit(np.linspace(np.min(x), np.max(x), 1000), *(popt + sigma))
+    bound_lower = func_fit(np.linspace(np.min(x), np.max(x), 1000), *(popt - sigma))
+    plt.fill_between(np.linspace(np.min(x), np.max(x), 1000), bound_lower, bound_upper,color = 'green', alpha = 0.15)
+    [normaly_low, normaly_high] = fig_x.get_ybound()
+    ysize = normaly_high - normaly_low
+    xsize = fig_x.get_xbound()[1] - fig_x.get_xbound()[0]
+    if (mode != 'all') and (mode != 'normal distribution') and (mode != 'no normal distribution'):
+        x_distr = stdnorm_test(x)
+        y_distr = stdnorm_test(y)
+        if (x_distr[0] == 0) and (y_distr[0] == 0):
+            mode = 'normal distribution'
+        else:
+            mode = 'no normal distribution'
+    if mode == 'all':
+        fig_x.set_ylim([normaly_low , normaly_high + 0.2 * ysize])
+        [r,p] = scipy.stats.pearsonr(x, y)
+        plt.text(fig_x.get_xbound()[0] + 0.1*xsize, normaly_high + 0.0*ysize, f'$r_r$ = {r:.{N_of_decimals}f} (' + report_p_value(p,Np_of_decimals) + ')',fontsize=18)
+        [r,p] = scipy.stats.spearmanr(x, y)
+        plt.text(fig_x.get_xbound()[0] + 0.1*xsize, normaly_high + 0.1*ysize, f'$r_s$ = {r:.{N_of_decimals}f} (' + report_p_value(p,Np_of_decimals) + ')',fontsize=18)
+    elif mode == 'normal distribution':
+        fig_x.set_ylim([normaly_low , normaly_high + 0.1 * ysize])
+        [r,p] = scipy.stats.pearsonr(x, y)
+        plt.text(fig_x.get_xbound()[0] + 0.1*xsize, normaly_high + 0.0*ysize, f'$r_r$ = {r:.{N_of_decimals}f} (' + report_p_value(p,Np_of_decimals) + ')',fontsize=18)
+    elif mode == 'no normal distribution':
+        fig_x.set_ylim([normaly_low , normaly_high + 0.1 * ysize])
+        [r,p] = scipy.stats.spearmanr(x, y)
+        plt.text(fig_x.get_xbound()[0] + 0.1*xsize, normaly_high + 0.0*ysize, f'$r_s$ = {r:.{N_of_decimals}f} (' + report_p_value(p,Np_of_decimals) + ')',fontsize=18)
+    fig_x.set_title(title,fontsize=22)
+    fig_x.set_xlabel(x_label,fontsize=20)
+    fig_x.set_ylabel(y_label,fontsize=20)
+    fig_x.tick_params(labelsize=18)
 
 
 
@@ -218,38 +327,6 @@ def comp_two_gr(u1,u2, mode = 'choose'):
         return [1,tnp,pnp]
     else:
         return [0,tp,pp]
-
-def corr_two_gr(u1,u2,mode = 'choose'):
-    #spearman = 1
-    #pearson = 0
-    print("u1" + str(np.sum(np.isnan(u1))))
-    print("u2" + str(np.sum(np.isnan(u1))))
-    # u1 = u1.dropna()
-    # u2 = u2.dropna()
-    [t1,z1] = scipy.stats.kstest((u1 - np.mean(u1))/np.std(u1,ddof = 1),scipy.stats.norm.cdf)
-    [t2,z2] = scipy.stats.kstest((u2 - np.mean(u2))/np.std(u2,ddof = 1),scipy.stats.norm.cdf)
-    [r,p] = scipy.stats.spearmanr(u1, u2)
-    s2 = (1 + np.power(r,2)/2)/(len(u1)-3)
-    confrs = [np.tanh(np.arctanh(r) - np.sqrt(s2) * scipy.stats.norm.ppf(0.975)) , np.tanh(np.arctanh(r) + np.sqrt(s2) * scipy.stats.norm.ppf(0.975))]
-    a = np.array([1,p,r,confrs[0],confrs[1]])
-    a = np.expand_dims(a, axis=0)
-    [r,p] = scipy.stats.pearsonr(u1, u2)
-    zr = np.arctanh(r)
-    se = 1/np.sqrt(len(u1)-3)
-    z = scipy.stats.norm.ppf(1-0.05/2)
-    lo_z, hi_z = zr-z*se, zr+z*se
-    confrr = np.tanh((lo_z, hi_z))
-    a = np.append(a,np.expand_dims(np.array([0,p,r,confrr[0],confrr[1]]), axis=0),axis = 0)
-    if mode == 'both':
-        return a
-    if mode == 's':
-        return a[0,:]
-    if mode == 'p':
-        return a[1,:]
-    if z1 <= 0.05 or z2 <= 0.05:
-        return a[0,:]
-    else:
-        return a[1,:]
 
 # auch nutzbar bei Bland altman plots
 def within_subject_coefficient_of_variation(x,y):
