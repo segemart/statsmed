@@ -5,6 +5,9 @@ import sys
 from collections import Counter
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+import casadi as ca
+import itertools
+import random
 
 '''test of normality using the: 1. Shapiro-Wilk-Test and 2. Kolmogorow-Smirnow-Test
 Kolmogorow-Smirnow-Test requires normalization but not Shapiro-Wilk-Test
@@ -17,30 +20,30 @@ Output: 0 if both tests do not indicate a significant difference from a normal d
         test-statistic of Kolmogorow-Smirnow-Test,
         p-value of Kolmogorow-Smirnow-Test
 '''
-def stdnorm_test(x):
+def stdnorm_test(x, quiet = False):
     SWn = 0
     [t1,z1] = scipy.stats.shapiro(x)
     if z1 < 0.05:
         SWn = 1
-        print(f"Shapiro-Wilk: No normal dsitribution (p-value = {z1:.4f})")
+        if not quiet: print(f"Shapiro-Wilk: No normal dsitribution (p-value = {z1:.4f})")
     else:
         SWn = 0
-        print(f"Shapiro-Wilk: Normal dsitribution (p-value = {z1:.2f} \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
+        if not quiet: print(f"Shapiro-Wilk: Normal dsitribution (p-value = {z1:.2f} \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
     KSn = 0
     [t2,z2] = scipy.stats.kstest((x - np.mean(x))/np.std(x,ddof = 1),scipy.stats.norm.cdf)
     if z2 < 0.05:
         KSn = 1
-        print(f"Kolmogorow-Smirnow: No normal dsitribution (p-value = {z2:.4f})")
+        if not quiet: print(f"Kolmogorow-Smirnow: No normal dsitribution (p-value = {z2:.4f})")
     else:
         KSn = 0
-        print(f"Kolmogorow-Smirnow: Normal dsitribution (p-value = {z2:.2f} \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
+        if not quiet: print(f"Kolmogorow-Smirnow: Normal dsitribution (p-value = {z2:.2f} \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
     Fn = 0
     if (z1 < 0.05) or (z2 < 0.05):
         Fn = 1
-        print("At least one test indicates no normal distribution")
+        if not quiet: print("At least one test indicates no normal distribution")
     else:
         Fn = 0
-        print("Both tests do not indicate a significant difference from a normal distribution")
+        if not quiet: print("Both tests do not indicate a significant difference from a normal distribution")
     return [Fn,SWn,KSn,t1,z1,t2,z2]
 
 ''' Descriptive statistic of data depending on their dirstribution:
@@ -53,42 +56,42 @@ Output: depends on mode if mode = all the function prints mean with standard dev
         the output is rounded to the number of given decimals
         it also returns a numpy array containing all values depending on mode
 '''
-def get_desc(x,N_of_decimals = 2,mode = 'choose'):
-    distr = stdnorm_test(x)
+def get_desc(x,N_of_decimals = 2,mode = 'choose', quiet = False):
+    distr = stdnorm_test(x,quiet)
     mean_std = np.array([np.mean(x),np.std(x), np.NaN])
     normald = get_CI_normd(x)
     IQRd = np.append(np.array([np.percentile(x,50)]),np.percentile(x, (25,75)))
     SignRd = get_CI_signrankdist_CC(x)
     if mode == 'all':
-        print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
-        print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
-        print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
-        print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
+        if not quiet: print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
+        if not quiet: print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
+        if not quiet: print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
+        if not quiet: print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
         res = np.stack((mean_std,normald, IQRd, SignRd), axis=0)
         res = np.round(res,N_of_decimals)
         return res
     elif mode == 'normal distribution':
-        print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
-        print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
+        if not quiet: print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
+        if not quiet: print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
         res = np.stack((mean_std,normald), axis=0)
         res = np.round(res,N_of_decimals)
         return res
     elif mode == 'no normal distribution':
-        print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
-        print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
+        if not quiet: print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
+        if not quiet: print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
         res = np.stack((IQRd, SignRd), axis=0)
         res = np.round(res,N_of_decimals)
         return res
     else:
         if distr[0] == 0:
-            print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
-            print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
+            if not quiet: print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
+            if not quiet: print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
             res = np.stack((mean_std,normald), axis=0)
             res = np.round(res,N_of_decimals)
             return res
         else:
-            print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
-            print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
+            if not quiet: print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
+            if not quiet: print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
             res = np.stack((IQRd, SignRd), axis=0)
             res = np.round(res,N_of_decimals)
             return res
@@ -114,11 +117,11 @@ Output: depends on mode if mode = all the function prints Spearman correlation a
                         95%-confidence interval of r-value rounded to number of given decimals
         the given lines depend on the mode
 '''
-def corr_two_gr(x,y,N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3):
-    print('Testing normal distribution of first variable:')
-    x_distr = stdnorm_test(x)
-    print('Testing normal distribution of second variable:')
-    y_distr = stdnorm_test(y)
+def corr_two_gr(x,y,N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet = False):
+    if not quiet: print('Testing normal distribution of first variable:')
+    x_distr = stdnorm_test(x,quiet)
+    if not quiet: print('Testing normal distribution of second variable:')
+    y_distr = stdnorm_test(y,quiet)
     [r,p] = scipy.stats.spearmanr(x, y)
     s2 = (1 + np.power(r,2)/2)/(len(x)-3)
     confrs = [np.tanh(np.arctanh(r) - np.sqrt(s2) * scipy.stats.norm.ppf(0.975)) , np.tanh(np.arctanh(r) + np.sqrt(s2) * scipy.stats.norm.ppf(0.975))]
@@ -132,29 +135,29 @@ def corr_two_gr(x,y,N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3):
     confrr = np.tanh((lo_z, hi_z))
     a = np.append(a,np.expand_dims(np.array([0,r,p,confrr[0],confrr[1]]), axis=0),axis = 0)
     if mode == 'all':
-        print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
-        print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
-        print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
-        print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
+        if not quiet: print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
+        if not quiet: print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
+        if not quiet: print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
+        if not quiet: print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
         return np.stack([a[:,0],np.round(a[:,1],2),np.round(a[:,2],3),np.round(a[:,3],2),np.round(a[:,4],2)],axis = 1)
     elif mode == 'normal distribution':
-        print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
-        print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
+        if not quiet: print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
+        if not quiet: print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
         return np.stack([a[1,0],np.round(a[1,1],2),np.round(a[1,2],3),np.round(a[1,3],2),np.round(a[1,4],2)],axis = 1)
     elif mode == 'no normal distribution':
-        print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
-        print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
+        if not quiet: print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
+        if not quiet: print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
         return np.stack([a[0,0],np.round(a[0,1],2),np.round(a[0,2],3),np.round(a[0,3],2),np.round(a[0,4],2)],axis = 1)
     else:
         if (x_distr[0] == 0) and (y_distr[0] == 0):
-            print('The distribution of both variables show no significant difference from a normal distribution. Thus Pearson correlation is performed.')
-            print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
-            print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
+            if not quiet: print('The distribution of both variables show no significant difference from a normal distribution. Thus Pearson correlation is performed.')
+            if not quiet: print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
+            if not quiet: print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
             return np.stack([a[1,0],np.round(a[1,1],2),np.round(a[1,2],3),np.round(a[1,3],2),np.round(a[1,4],2)],axis = 1)
         else:
-            print('The distribution of at least one of both variables shows a significant difference from a normal distribution. Thus Spearman correlation is performed.')
-            print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
-            print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
+            if not quiet: print('The distribution of at least one of both variables shows a significant difference from a normal distribution. Thus Spearman correlation is performed.')
+            if not quiet: print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
+            if not quiet: print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
             return np.stack([a[0,0],np.round(a[0,1],2),np.round(a[0,2],3),np.round(a[0,3],2),np.round(a[0,4],2)],axis = 1)
 
 
@@ -164,7 +167,7 @@ def func_fit(x,a,b):
 ''' Makes a scatter plot of the x and y data with a linear regression for visualization and gives the correlations (Spearman and Pearson):
 Input: two arrays of test-data (x and y) - please exclude NaN or None Values; Figure; Title; Label of x-axis; Label of y-axis; color; Number of decimals; mode (what to return); Number of decimals for significant p values
 '''
-def corr_scatter_figure(x,y,fig_x,title='',x_label='',y_label='', color = 'green',N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3):
+def corr_scatter_figure(x,y,fig_x,title='',x_label='',y_label='', color = 'green',N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3,quiet = False):
     plt.scatter(x,y, color = color,s=10, alpha=0.2)
     popt, pcov = scipy.optimize.curve_fit(func_fit, x, y)
     plt.plot(x,func_fit(x,*popt), color = color,linewidth=3)
@@ -176,8 +179,8 @@ def corr_scatter_figure(x,y,fig_x,title='',x_label='',y_label='', color = 'green
     ysize = normaly_high - normaly_low
     xsize = fig_x.get_xbound()[1] - fig_x.get_xbound()[0]
     if (mode != 'all') and (mode != 'normal distribution') and (mode != 'no normal distribution'):
-        x_distr = stdnorm_test(x)
-        y_distr = stdnorm_test(y)
+        x_distr = stdnorm_test(x,quiet)
+        y_distr = stdnorm_test(y,quiet)
         if (x_distr[0] == 0) and (y_distr[0] == 0):
             mode = 'normal distribution'
         else:
@@ -888,8 +891,159 @@ def qwilcox(x, m, n, lower_tail = True):
         q = int((m*n) - q)
     return q
 
+# input: x is casadi variable, xd is x - data and yd is y - data of measures
+# ouput: linearized function that connects the datapoints of x - data and y - data
+def punkt_def_function(x,xd, yd):
+    if len(xd) == len(yd):
+        f = ((yd[1] - yd[0])/(xd[1]- xd[0])*x + (yd[0]-((yd[1] - yd[0])/(xd[1]-xd[0]))*xd[0])) * ((x>=xd[0])*(x<xd[1]))
+        if len(xd) > 2:
+            i=2
+            while i < len(xd):
+                f = f+ ((yd[i] - yd[i-1])/(xd[i]- xd[i-1])*x + (yd[i-1]-((yd[i] - yd[i-1])/(xd[i]-xd[i-1]))*xd[i-1])) * ((x>=xd[i-1])*(x<xd[i]))
+                i += 1
+        return f
+    else:
+        print('Error: x - data and y - data do not have the same size')
+        return None
 
+# calculates mean function of list of functions - may be defined by statsmed.punkt_def_function
+def mean_function(f_list):
+    mfunc = f_list[0]
+    if len(f_list) > 1:
+        i = 0
+        while i < len(f_list):
+            mfunc += f_list[i]
+            i += 1
+    mfunc = mfunc / len(f_list)
+    return mfunc
 
+# calculates variance function of list of functions - may be defined by statsmed.punkt_def_function
+def var_function(f_list):
+    mfunc = mean_function(f_list)
+    vfunc = (f_list[0]-mfunc)**2
+    if len(f_list) > 1:
+        i = 0
+        while i < len(f_list):
+            vfunc += (f_list[i]-mfunc)**2
+            i += 1
+    vfunc = vfunc / (len(f_list)-1)
+    return vfunc
+
+# returns max of a and b, whereas a and b may also be functions
+def max(a,b):
+    max = a * (a >= b) + b*(a < b)
+    return max
+
+# returns absolute valua of a, whereas a may also be a function
+def abs(a):
+    abs = max(a,-a)
+    return abs
+
+def Tfun(lf1,lf2):
+    Tfun = abs(mean_function(lf1) - mean_function(lf2))/np.sqrt( (1/len(lf1))*var_function(lf1) + (1/len(lf2))*var_function(lf2))
+    return Tfun
+
+def functional_t_test_stat(x,lf1,lf2,sampler):
+    Tfun_fR = Tfun(lf1,lf2)
+    TfR_eval = ca.Function('f_eval', [x], [Tfun_fR])
+    R = TfR_eval(sampler)
+    R[np.where(np.isnan(R))[0]] = -np.inf
+    TfR_max = np.max(R)
+    return TfR_max
+
+def functional_t_test_all_perm(x,lf1,lf2,sampler,Np_of_decimals = 3):
+    T_org_max = functional_t_test_stat(x,lf1,lf2,sampler)
+    f_all = lf1 + lf2
+    count = 0
+    T_coll = np.array([])
+    for i in itertools.combinations(np.arange(len(f_all)),len(lf1)):
+        if count != 0:
+            inf_lst1 = []
+            for ooi in i:
+                inf_lst1 += [f_all[ooi]]
+            inf_lst2 = []
+            for ooi in np.setdiff1d(np.arange(len(f_all)),i):
+                inf_lst2 += [f_all[ooi]]
+            T_coll = np.append(T_coll,functional_t_test_stat(x,inf_lst1,inf_lst2,sampler))
+        count += 1
+    return [T_org_max, report_p_value(np.sum(T_coll > T_org_max)/count,Np_of_decimals)]
+
+def functional_t_test(x,lf1,lf2,sampler,nnum,Np_of_decimals = 3):
+    T_org_max = functional_t_test_stat(x,lf1,lf2,sampler)
+    f_all = lf1 + lf2
+    count = 0
+    T_coll = np.array([])
+    for i_cc in range(nnum):
+        i = random.sample(np.arange(len(f_all)).tolist(),len(lf1))
+        if count != 0:
+            inf_lst1 = []
+            for ooi in i:
+                inf_lst1 += [f_all[ooi]]
+            inf_lst2 = []
+            for ooi in np.setdiff1d(np.arange(len(f_all)),i):
+                inf_lst2 += [f_all[ooi]]
+            T_coll = np.append(T_coll,functional_t_test_stat(x,inf_lst1,inf_lst2,sampler))
+        count += 1
+    return [T_org_max, report_p_value(np.sum(T_coll > T_org_max)/count,Np_of_decimals)]
+
+def functional_corr_vec(lf,sampler):
+    len_lf = len(lf)
+    corr_vec = np.array([])
+    for i1 in range(len_lf):
+        for i2 in range(len_lf):
+            if i1 < i2:
+                f1 = ca.Function('f_eval', [x], [lf[i1]])
+                f2 = ca.Function('f_eval', [x], [lf[i2]])
+                corr_vec = np.append(corr_vec,scipy.stats.spearmanr(f1(sampler), f2(sampler))[0])
+    return corr_vec
+
+def functional_corr_test_stat(lf1,lf2,sampler):
+    corrv_f1 = functional_corr_vec(lf1,sampler)
+    corrv_f2 = functional_corr_vec(lf2,sampler)
+    m1 = np.mean(corrv_f1)
+    m2 = np.mean(corrv_f2)
+    v1 = np.var(corrv_f1)
+    v2 = np.var(corrv_f2)
+    lcorrv_f1 = len(corrv_f1)
+    lcorrv_f2 = len(corrv_f1)
+    sq2 = np.sqrt(((lcorrv_f1-1)*v1 + (lcorrv_f2-1)*v2)/(lcorrv_f1 + lcorrv_f2 - 2))
+    t = np.sqrt((lcorrv_f1*lcorrv_f2)/(lcorrv_f1 + lcorrv_f2)) * ((m1 - m2)/sq2)
+    return [t,scipy.stats.ttest_ind(corrv_f1, corrv_f2)]
+
+def functional_corr_test_all_perm(lf1,lf2,sampler):
+    T_org = functional_corr_test_stat(lf1,lf2,sampler)[0]
+    f_all = lf1 + lf2
+    count = 0
+    T_coll = np.array([])
+    for i in itertools.combinations(np.arange(len(f_all)),len(lf1)):
+        if count != 0:
+            inf_lst1 = []
+            for ooi in i:
+                inf_lst1 += [f_all[ooi]]
+            inf_lst2 = []
+            for ooi in np.setdiff1d(np.arange(len(f_all)),i):
+                inf_lst2 += [f_all[ooi]]
+            T_coll = np.append(T_coll,functional_corr_test_stat(inf_lst1,inf_lst2,sampler)[0])
+        count += 1
+    return [T_org, np.sum(T_coll > T_org)/count]
+
+def functional_corr_test(lf1,lf2,sampler,nnum):
+    T_org = functional_corr_test_stat(lf1,lf2,sampler)[0]
+    f_all = lf1 + lf2
+    count = 0
+    T_coll = np.array([])
+    for i_cc in range(nnum):#itertools.islice(combinations, nnum):
+        i = random.sample(np.arange(len(f_all)).tolist(),len(lf1))
+        if count != 0:
+            inf_lst1 = []
+            for ooi in i:
+                inf_lst1 += [f_all[ooi]]
+            inf_lst2 = []
+            for ooi in np.setdiff1d(np.arange(len(f_all)),i):
+                inf_lst2 += [f_all[ooi]]
+            T_coll = np.append(T_coll,functional_corr_test_stat(inf_lst1,inf_lst2,sampler)[0])
+        count += 1
+    return [T_org, np.sum(T_coll > T_org)/count]
 
 
 
