@@ -1008,7 +1008,7 @@ def functional_corr_test_stat(x,lf1,lf2,sampler,Np_of_decimals = 3):
     lcorrv_f2 = len(corrv_f1)
     sq2 = np.sqrt(((lcorrv_f1-1)*v1 + (lcorrv_f2-1)*v2)/(lcorrv_f1 + lcorrv_f2 - 2))
     t = np.sqrt((lcorrv_f1*lcorrv_f2)/(lcorrv_f1 + lcorrv_f2)) * ((m1 - m2)/sq2)
-    return [t,report_p_value(scipy.stats.wilcoxon(corrv_f1, corrv_f2)[1],Np_of_decimals)]
+    return [t,report_p_value(scipy.stats.ttest_ind(corrv_f1, corrv_f2)[1],Np_of_decimals)]
 
 def functional_corr_test_all_perm(x,lf1,lf2,sampler,Np_of_decimals = 3):
     T_org = functional_corr_test_stat(x,lf1,lf2,sampler)[0]
