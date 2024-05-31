@@ -986,7 +986,7 @@ def functional_t_test(x,lf1,lf2,sampler,nnum,Np_of_decimals = 3):
         count += 1
     return [T_org_max, report_p_value(np.sum(T_coll > T_org_max)/count,Np_of_decimals)]
 
-def functional_corr_vec(lf,sampler):
+def functional_corr_vec(x,lf,sampler):
     len_lf = len(lf)
     corr_vec = np.array([])
     for i1 in range(len_lf):
@@ -997,9 +997,9 @@ def functional_corr_vec(lf,sampler):
                 corr_vec = np.append(corr_vec,scipy.stats.spearmanr(f1(sampler), f2(sampler))[0])
     return corr_vec
 
-def functional_corr_test_stat(lf1,lf2,sampler):
-    corrv_f1 = functional_corr_vec(lf1,sampler)
-    corrv_f2 = functional_corr_vec(lf2,sampler)
+def functional_corr_test_stat(x,lf1,lf2,sampler,Np_of_decimals = 3):
+    corrv_f1 = functional_corr_vec(x,lf1,sampler)
+    corrv_f2 = functional_corr_vec(x,lf2,sampler)
     m1 = np.mean(corrv_f1)
     m2 = np.mean(corrv_f2)
     v1 = np.var(corrv_f1)
@@ -1008,10 +1008,10 @@ def functional_corr_test_stat(lf1,lf2,sampler):
     lcorrv_f2 = len(corrv_f1)
     sq2 = np.sqrt(((lcorrv_f1-1)*v1 + (lcorrv_f2-1)*v2)/(lcorrv_f1 + lcorrv_f2 - 2))
     t = np.sqrt((lcorrv_f1*lcorrv_f2)/(lcorrv_f1 + lcorrv_f2)) * ((m1 - m2)/sq2)
-    return [t,scipy.stats.ttest_ind(corrv_f1, corrv_f2)]
+    return [t,report_p_value(scipy.stats.wilcoxon(corrv_f1, corrv_f2)[1],Np_of_decimals)]
 
-def functional_corr_test_all_perm(lf1,lf2,sampler):
-    T_org = functional_corr_test_stat(lf1,lf2,sampler)[0]
+def functional_corr_test_all_perm(x,lf1,lf2,sampler,Np_of_decimals = 3):
+    T_org = functional_corr_test_stat(x,lf1,lf2,sampler)[0]
     f_all = lf1 + lf2
     count = 0
     T_coll = np.array([])
@@ -1023,16 +1023,16 @@ def functional_corr_test_all_perm(lf1,lf2,sampler):
             inf_lst2 = []
             for ooi in np.setdiff1d(np.arange(len(f_all)),i):
                 inf_lst2 += [f_all[ooi]]
-            T_coll = np.append(T_coll,functional_corr_test_stat(inf_lst1,inf_lst2,sampler)[0])
+            T_coll = np.append(T_coll,functional_corr_test_stat(x,inf_lst1,inf_lst2,sampler)[0])
         count += 1
-    return [T_org, np.sum(T_coll > T_org)/count]
+    return [T_org, report_p_value(np.sum(T_coll > T_org)/count,Np_of_decimals)]
 
-def functional_corr_test(lf1,lf2,sampler,nnum):
-    T_org = functional_corr_test_stat(lf1,lf2,sampler)[0]
+def functional_corr_test(x,lf1,lf2,sampler,nnum,Np_of_decimals = 3):
+    T_org = functional_corr_test_stat(x,lf1,lf2,sampler)[0]
     f_all = lf1 + lf2
     count = 0
     T_coll = np.array([])
-    for i_cc in range(nnum):#itertools.islice(combinations, nnum):
+    for i_cc in range(nnum):
         i = random.sample(np.arange(len(f_all)).tolist(),len(lf1))
         if count != 0:
             inf_lst1 = []
@@ -1041,9 +1041,9 @@ def functional_corr_test(lf1,lf2,sampler,nnum):
             inf_lst2 = []
             for ooi in np.setdiff1d(np.arange(len(f_all)),i):
                 inf_lst2 += [f_all[ooi]]
-            T_coll = np.append(T_coll,functional_corr_test_stat(inf_lst1,inf_lst2,sampler)[0])
+            T_coll = np.append(T_coll,functional_corr_test_stat(x,inf_lst1,inf_lst2,sampler)[0])
         count += 1
-    return [T_org, np.sum(T_coll > T_org)/count]
+    return [T_org, report_p_value(np.sum(T_coll > T_org)/count,Np_of_decimals)]
 
 
 
