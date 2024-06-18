@@ -9,6 +9,16 @@ import casadi as ca
 import itertools
 import random
 
+# Shapiro-Wilk-Test returning Test-statistic and p-value
+def shapiro_wilk_test(x):
+    [t,z] = scipy.stats.shapiro(x)
+    return ([t,z])
+
+# Kolmogorow-Smirnow-Test returning Test-statistic and p-value
+def kolmogorow_smirnow_test(x):
+    [t,z] = scipy.stats.kstest((x - np.mean(x))/np.std(x,ddof = 1),scipy.stats.norm.cdf)
+    return ([t,z])
+
 '''test of normality using the: 1. Shapiro-Wilk-Test and 2. Kolmogorow-Smirnow-Test
 Kolmogorow-Smirnow-Test requires normalization but not Shapiro-Wilk-Test
 Input: array of test-data - please exclude NaN or None Values.
@@ -20,23 +30,23 @@ Output: 0 if both tests do not indicate a significant difference from a normal d
         test-statistic of Kolmogorow-Smirnow-Test,
         p-value of Kolmogorow-Smirnow-Test
 '''
-def stdnorm_test(x, quiet = False):
+def stdnorm_test(x,Np_of_decimals = 3, quiet = False):
     SWn = 0
-    [t1,z1] = scipy.stats.shapiro(x)
+    [t1,z1] = shapiro_wilk_test(x)
     if z1 < 0.05:
         SWn = 1
-        if not quiet: print(f"Shapiro-Wilk: No normal dsitribution (p-value = {z1:.4f})")
+        if not quiet: print("Shapiro-Wilk: No normal dsitribution (p-value = " + report_p_value(z1,Np_of_decimals) + ")")
     else:
         SWn = 0
-        if not quiet: print(f"Shapiro-Wilk: Normal dsitribution (p-value = {z1:.2f} \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
+        if not quiet: print("Shapiro-Wilk: Normal dsitribution (p-value = " + report_p_value(z1,Np_of_decimals) + " \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
     KSn = 0
-    [t2,z2] = scipy.stats.kstest((x - np.mean(x))/np.std(x,ddof = 1),scipy.stats.norm.cdf)
+    [t2,z2] = kolmogorow_smirnow_test(x)
     if z2 < 0.05:
         KSn = 1
-        if not quiet: print(f"Kolmogorow-Smirnow: No normal dsitribution (p-value = {z2:.4f})")
+        if not quiet: print("Kolmogorow-Smirnow: No normal dsitribution (p-value = " + report_p_value(z2,Np_of_decimals) + ")")
     else:
         KSn = 0
-        if not quiet: print(f"Kolmogorow-Smirnow: Normal dsitribution (p-value = {z2:.2f} \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
+        if not quiet: print("Kolmogorow-Smirnow: Normal dsitribution (p-value = " + report_p_value(z2,Np_of_decimals) + " \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
     Fn = 0
     if (z1 < 0.05) or (z2 < 0.05):
         Fn = 1
@@ -57,7 +67,7 @@ Output: depends on mode if mode = all the function prints mean with standard dev
         it also returns a numpy array containing all values depending on mode
 '''
 def get_desc(x,N_of_decimals = 2,mode = 'choose', quiet = False):
-    distr = stdnorm_test(x,quiet)
+    distr = stdnorm_test(x,quiet = True)
     mean_std = np.array([np.mean(x),np.std(x), np.NaN])
     normald = get_CI_normd(x)
     IQRd = np.append(np.array([np.percentile(x,50)]),np.percentile(x, (25,75)))
@@ -139,27 +149,26 @@ def corr_two_gr(x,y,N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet 
         if not quiet: print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
         if not quiet: print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
         if not quiet: print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
-        return np.stack([a[:,0],np.round(a[:,1],2),np.round(a[:,2],3),np.round(a[:,3],2),np.round(a[:,4],2)],axis = 1)
+        return np.stack([a[:,0],np.round(a[:,1],N_of_decimals),np.round(a[:,2],Np_of_decimals),np.round(a[:,3],N_of_decimals),np.round(a[:,4],N_of_decimals)],axis = 1)
     elif mode == 'normal distribution':
         if not quiet: print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
         if not quiet: print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
-        return np.stack([a[1,0],np.round(a[1,1],2),np.round(a[1,2],3),np.round(a[1,3],2),np.round(a[1,4],2)],axis = 1)
+        return np.stack([a[1,0],np.round(a[1,1],N_of_decimals),np.round(a[1,2],Np_of_decimals),np.round(a[1,3],N_of_decimals),np.round(a[1,4],N_of_decimals)],axis = 1)
     elif mode == 'no normal distribution':
         if not quiet: print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
         if not quiet: print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
-        return np.stack([a[0,0],np.round(a[0,1],2),np.round(a[0,2],3),np.round(a[0,3],2),np.round(a[0,4],2)],axis = 1)
+        return np.stack([a[0,0],np.round(a[0,1],N_of_decimals),np.round(a[0,2],Np_of_decimals),np.round(a[0,3],N_of_decimals),np.round(a[0,4],N_of_decimals)],axis = 1)
     else:
         if (x_distr[0] == 0) and (y_distr[0] == 0):
             if not quiet: print('The distribution of both variables show no significant difference from a normal distribution. Thus Pearson correlation is performed.')
             if not quiet: print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
             if not quiet: print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
-            return np.stack([a[1,0],np.round(a[1,1],2),np.round(a[1,2],3),np.round(a[1,3],2),np.round(a[1,4],2)],axis = 1)
+            return np.stack([a[1,0],np.round(a[1,1],N_of_decimals),np.round(a[1,2],Np_of_decimals),np.round(a[1,3],N_of_decimals),np.round(a[1,4],N_of_decimals)],axis = 1)
         else:
             if not quiet: print('The distribution of at least one of both variables shows a significant difference from a normal distribution. Thus Spearman correlation is performed.')
             if not quiet: print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
             if not quiet: print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
-            return np.stack([a[0,0],np.round(a[0,1],2),np.round(a[0,2],3),np.round(a[0,3],2),np.round(a[0,4],2)],axis = 1)
-
+            return np.stack([a[0,0],np.round(a[0,1],N_of_decimals),np.round(a[0,2],Np_of_decimals),np.round(a[0,3],N_of_decimals),np.round(a[0,4],N_of_decimals)],axis = 1)
 
 def func_fit(x,a,b):
     return a*x+b
@@ -204,6 +213,145 @@ def corr_scatter_figure(x,y,fig_x,title='',x_label='',y_label='', color = 'green
     fig_x.set_ylabel(y_label,fontsize=20)
     fig_x.tick_params(labelsize=18)
 
+def ttest_ind(x,y,alternative='two-sided'):
+    [t,p] = scipy.stats.ttest_ind(x,y,alternative=alternative)
+    return [t,p]
+
+def ttest_dep(x,y,alternative='two-sided'):
+    [t,p] = scipy.stats.ttest_rel(x,y,alternative=alternative)
+    return [t,p]
+
+def mann_whitney_ind(x,y,alternative='two-sided'):
+    [t,p] = scipy.stats.mannwhitneyu(x, y,alternative=alternative)
+    return [t,p]
+
+def wilcoxon_dep(x,y,alternative='two-sided'):
+    [t,p] = scipy.stats.wilcoxon(x, y,alternative=alternative)
+    return [t,p]
+
+''' Comparison of two groups with continuous variables:
+Input: two arrays of test-data (x and y) - please exclude NaN or None Values; independet = True or False is x and y are independent (True) or dependent/related (False); alternative: {two-sided, less, greater}; Number of decimals; mode (what to return); Number of decimals for significant p values
+Output: depends on mode if mode = all; the function prints results of T-test for the means of two independent and dependent/related samples, Mann-Whitney U-Test of two independent samples and Wilcoxon signed-rank test of two dependent/related samples
+                        if mode = normal distribution - dependent on independent value the function prints results of T-test for the means of two independent or dependent/related samples
+                        if mode = no normal distribution - dependent on independent value the function prints results of Mann-Whitney U-Test of two independent samples or Wilcoxon signed-rank test of two dependent/related samples
+                        if something else is given the respective output depends on whether the data is normal distributed or not normal distributed due to stdnorm_test
+        the output for each line of the output: t-value rounded to number of given decimals; p-value rounded to number of decimals for significant p values;
+        the given lines depend on the mode
+'''
+def comp_two_gr_continuous(x,y,independent,alternative='two-sided', N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet = False):
+    if not quiet: print('Testing normal distribution of x-data:')
+    x_distr = stdnorm_test(x,Np_of_decimals,quiet = quiet)
+    if not quiet:
+        print('Descriptive Statistic of the x-data with all returns:')
+    x_res = get_desc(x,N_of_decimals,mode = 'all',quiet = quiet)
+    if not quiet: print('\n')
+    if not quiet: print('Testing normal distribution of y-data:')
+    y_distr = stdnorm_test(y,Np_of_decimals,quiet = quiet)
+    if not quiet:
+        print('Descriptive Statistic of the y-data with all returns:')
+    y_res = get_desc(y,N_of_decimals,mode = 'all',quiet = quiet)
+    if not quiet: print('\n')
+    if independent == True:
+        [t_ttest_ind,p_ttest_ind] = ttest_ind(x,y,alternative=alternative)
+        [t_mann_whitney_ind,p_mann_whitney_ind] = mann_whitney_ind(x,y,alternative=alternative)
+    else:
+        [t_ttest_dep,p_ttest_dep] = ttest_dep(x,y,alternative=alternative)
+        [t_wilcoxon_dep,p_wilcoxon_dep] = wilcoxon_dep(x,y,alternative=alternative)
+    if mode == 'all':
+        if independent == True:
+            if not quiet: print('T-test for the means of two independent samples yields a p-value of: ' + report_p_value(p_ttest_ind,Np_of_decimals) + f' (t-value: {t_ttest_ind:.{N_of_decimals}f})')
+            if not quiet: print('Mann-Whitney U-Test of two independent samples yields a p-value of: ' + report_p_value(p_mann_whitney_ind,Np_of_decimals) + f' (t-value: {t_mann_whitney_ind:.{N_of_decimals}f})')
+            res = np.array([[np.round(t_ttest_ind,N_of_decimals),np.round(p_ttest_ind,Np_of_decimals)],[np.round(t_mann_whitney_ind,N_of_decimals),np.round(p_mann_whitney_ind,Np_of_decimals)]])
+            return res
+        else:
+            if not quiet: print('T-test for the means of two dependent/related samples yields a p-value of: ' + report_p_value(p_ttest_dep,Np_of_decimals) + f' (t-value: {t_ttest_dep:.{N_of_decimals}f})')
+            if not quiet: print('Wilcoxon signed-rank test of two dependent/related samples yields a p-value: ' + report_p_value(p_wilcoxon_dep,Np_of_decimals) + f' (t-value: {t_wilcoxon_dep:.{N_of_decimals}f})')
+            res = np.array([[np.round(t_ttest_dep,N_of_decimals),np.round(p_ttest_dep,Np_of_decimals)],[np.round(t_wilcoxon_dep,N_of_decimals),np.round(p_wilcoxon_dep,Np_of_decimals)]])
+            return res
+    elif mode == 'normal distribution':
+        if independent == True:
+            if not quiet: print('T-test for the means of two independent samples yields a p-value of: ' + report_p_value(p_ttest_ind,Np_of_decimals) + f' (t-value: {t_ttest_ind:.{N_of_decimals}f})')
+            res = np.array([np.round(t_ttest_ind,N_of_decimals),np.round(p_ttest_ind,Np_of_decimals)])
+            return res
+        else:
+            if not quiet: print('T-test for the means of two dependent/related samples yields a p-value of: ' + report_p_value(p_ttest_dep,Np_of_decimals) + f' (t-value: {t_ttest_dep:.{N_of_decimals}f})')
+            res = np.array([np.round(t_ttest_dep,N_of_decimals),np.round(p_ttest_dep,Np_of_decimals)])
+            return res
+    elif mode == 'no normal distribution':
+        if independent == True:
+            if not quiet: print('Mann-Whitney U-Test of two independent samples yields a p-value of: ' + report_p_value(p_mann_whitney_ind,Np_of_decimals) + f' (t-value: {t_mann_whitney_ind:.{N_of_decimals}f})')
+            res = np.array([np.round(t_mann_whitney_ind,N_of_decimals),np.round(p_mann_whitney_ind,Np_of_decimals)])
+            return res
+        else:
+            if not quiet: print('Wilcoxon signed-rank test of two dependent/related samples yields a p-value: ' + report_p_value(p_wilcoxon_dep,Np_of_decimals) + f' (t-value: {t_wilcoxon_dep:.{N_of_decimals}f})')
+            res = np.array([np.round(t_wilcoxon_dep,N_of_decimals),np.round(p_wilcoxon_dep,Np_of_decimals)])
+            return res
+    else:
+        if (x_distr[0] == 0) and (y_distr[0] == 0):
+            if independent == True:
+                if not quiet: print('T-test for the means of two independent samples yields a p-value of: ' + report_p_value(p_ttest_ind,Np_of_decimals) + f' (t-value: {t_ttest_ind:.{N_of_decimals}f})')
+                res = np.array([np.round(t_ttest_ind,N_of_decimals),np.round(p_ttest_ind,Np_of_decimals)])
+                return res
+            else:
+                if not quiet: print('T-test for the means of two dependent/related samples yields a p-value of: ' + report_p_value(p_ttest_dep,Np_of_decimals) + f' (t-value: {t_ttest_dep:.{N_of_decimals}f})')
+                res = np.array([np.round(t_ttest_dep,N_of_decimals),np.round(p_ttest_dep,Np_of_decimals)])
+                return res
+        else:
+            if independent == True:
+                if not quiet: print('Mann-Whitney U-Test of two independent samples yields a p-value of: ' + report_p_value(p_mann_whitney_ind,Np_of_decimals) + f' (t-value: {t_mann_whitney_ind:.{N_of_decimals}f})')
+                res = np.array([np.round(t_mann_whitney_ind,N_of_decimals),np.round(p_mann_whitney_ind,Np_of_decimals)])
+                return res
+            else:
+                if not quiet: print('Wilcoxon signed-rank test of two dependent/related samples yields a p-value: ' + report_p_value(p_wilcoxon_dep,Np_of_decimals) + f' (t-value: {t_wilcoxon_dep:.{N_of_decimals}f})')
+                res = np.array([np.round(t_wilcoxon_dep,N_of_decimals),np.round(p_wilcoxon_dep,Np_of_decimals)])
+                return res
+
+
+''' Makes a Bland-Altman plot of the x and y data:
+Input: two arrays of test-data (x and y) - please exclude NaN or None Values; Figure; Title; Label of x-axis; Label of y-axis
+'''
+def bland_altman_plot(x, y, fig_x,title='',x_label='Mean of raters',y_label='Difference in seconds between raters'):
+    data1     = np.asarray(x)
+    data2     = np.asarray(y)
+    mean      = np.mean([x, y], axis=0)
+    # diff      = (x - y)/y * 100               # Difference between data1 and data2
+    diff      = (x - y)                         # Difference between data1 and data2
+    md        = np.mean(diff)                   # Mean of the difference
+    sd        = np.std(diff,ddof = 1, axis=0)   # Standard deviation of the difference
+    median    = np.percentile(diff,50)
+    quartile  = np.percentile(diff,[10, 90])
+    plt.scatter(mean, diff,color="green")
+    plt.axhline(md,           color='blue', linestyle='--')
+    plt.axhline(md + 1.96*sd, color='red', linestyle='--')
+    plt.axhline(md - 1.96*sd, color='red', linestyle='--')
+    # plt.axhline(quartile[0] , color='black', linestyle=':')
+    # plt.axhline(quartile[1] , color='black', linestyle=':')
+    n = diff.shape[0]
+    sd = np.std(diff,ddof = 1)
+    # Variance
+    var = sd**2
+    # Standard error of the bias
+    se_bias = np.sqrt(var / n)
+    # Standard error of the limits of agreement
+    se_loas = np.sqrt(3 * var / n)
+    # Endpoints of the range that contains 95% of the Student’s t distribution
+    t_interval = scipy.stats.t.interval(alpha=0.95, df=n - 1)
+    # Confidence intervals
+    ci_bias = md + np.array(t_interval) * se_bias
+    ci_upperloa = md + 1.96*sd + np.array(t_interval) * se_loas
+    ci_lowerloa = md - 1.96*sd + np.array(t_interval) * se_loas
+    left, right = plt.xlim()    
+    plt.fill_between([left-100, right+100], [ci_upperloa[0], ci_upperloa[0]], [ci_upperloa[1], ci_upperloa[1]],color = 'lightcoral', alpha = 0.15)
+    plt.fill_between([left-100, right+100], [ci_bias[0], ci_bias[0]], [ci_bias[1], ci_bias[1]],color = 'cornflowerblue', alpha = 0.15)
+    plt.fill_between([left-100, right+100], [ci_lowerloa[0], ci_lowerloa[0]], [ci_lowerloa[1], ci_lowerloa[1]],color = 'lightcoral', alpha = 0.15)
+    plt.xlim(left,right)
+    # plt.plot([left] * 2, list(ci_upperloa), c='grey', ls='--', alpha=0.5)
+    # plt.plot([left] * 2, list(ci_bias), c='grey', ls='--', alpha=0.5)
+    # plt.plot([left] * 2, list(ci_lowerloa), c='grey', ls='--', alpha=0.5)
+    fig_x.set_title(title,fontsize=22)
+    fig_x.set_xlabel(x_label,fontsize=20)
+    fig_x.set_ylabel(y_label,fontsize=20)
+    fig_x.tick_params(labelsize=18)
 
 
 def get_CI_normd(x):
@@ -308,28 +456,6 @@ def relation_CI_signrankdist_CC(x,y):
 def relation_CI_signrankdist_CC_abs(x,y):
     r = np.abs((x-y))/x
     return get_CI_signrankdist_CC(r)
-
-def comp_two_gr(u1,u2, mode = 'choose'):
-    # 1 nicht normalverteilt = nicht parametrisch (np)
-    # 0 normalverteilt = parametrisch (p)
-    print("u1" + str(np.sum(np.isnan(u1))))
-    print("u2" + str(np.sum(np.isnan(u2))))
-    # u1 = u1.dropna()
-    # u2 = u2.dropna()
-    [t1,z1] = scipy.stats.kstest((u1 - np.mean(u1))/np.std(u1,ddof = 1),scipy.stats.norm.cdf)
-    [t2,z2] = scipy.stats.kstest((u2 - np.mean(u2))/np.std(u2,ddof = 1),scipy.stats.norm.cdf)
-    [tnp,pnp] = scipy.stats.ranksums(u1,u2)
-    [tp,pp] = scipy.stats.ttest_ind(u1, u2, equal_var=False)
-    if mode == 'both':
-        return [[1,tnp,pnp],[0,tp,pp]]
-    if mode == 'np':
-        return [1,tnp,pnp]
-    if mode == 'p':
-        return [0,tp,pp]
-    if z1 <= 0.05 or z2 <= 0.05:
-        return [1,tnp,pnp]
-    else:
-        return [0,tp,pp]
 
 # auch nutzbar bei Bland altman plots
 def within_subject_coefficient_of_variation(x,y):
@@ -545,54 +671,6 @@ def CI_plot_multi_sing(datas,legend_labels,labels,bound, x,title='',x_label='',y
     x.spines['top'].set_visible(False)
     x.spines['right'].set_visible(False)
     x.spines['left'].set_visible(False)
-    x.set_title(title,fontsize=22)
-    x.set_xlabel(x_label,fontsize=20)
-    x.set_ylabel(y_label,fontsize=20)
-    x.tick_params(labelsize=18)
-
-def bland_altman_plot(data1, data2, x,title='',x_label='Mean of raters',y_label='Difference in seconds between raters'):
-    data1     = np.asarray(data1)
-    data2     = np.asarray(data2)
-    mean      = np.mean([data1, data2], axis=0)
-    # diff      = (data1 - data2)/data2 * 100                   # Difference between data1 and data2
-    diff      = (data1 - data2)                   # Difference between data1 and data2
-    md        = np.mean(diff)                   # Mean of the difference
-    sd        = np.std(diff,ddof = 1, axis=0)            # Standard deviation of the difference
-    median    = np.percentile(diff,50)
-    quartile  = np.percentile(diff,[10, 90])
-
-    plt.scatter(mean, diff,color="green")
-    plt.axhline(md,           color='blue', linestyle='--')
-    plt.axhline(md + 1.96*sd, color='red', linestyle='--')
-    plt.axhline(md - 1.96*sd, color='red', linestyle='--')
-    # plt.axhline(quartile[0] , color='black', linestyle=':')
-    # plt.axhline(quartile[1] , color='black', linestyle=':')
-    
-    n = diff.shape[0]
-    sd = np.std(diff,ddof = 1)
-    # Variance
-    var = sd**2
-    # Standard error of the bias
-    se_bias = np.sqrt(var / n)
-    # Standard error of the limits of agreement
-    se_loas = np.sqrt(3 * var / n)
-    # Endpoints of the range that contains 95% of the Student’s t distribution
-    t_interval = scipy.stats.t.interval(alpha=0.95, df=n - 1)
-    # Confidence intervals
-    ci_bias = md + np.array(t_interval) * se_bias
-    ci_upperloa = md + 1.96*sd + np.array(t_interval) * se_loas
-    ci_lowerloa = md - 1.96*sd + np.array(t_interval) * se_loas
-
-    left, right = plt.xlim()    
-    plt.fill_between([left-100, right+100], [ci_upperloa[0], ci_upperloa[0]], [ci_upperloa[1], ci_upperloa[1]],color = 'lightcoral', alpha = 0.15)
-    plt.fill_between([left-100, right+100], [ci_bias[0], ci_bias[0]], [ci_bias[1], ci_bias[1]],color = 'cornflowerblue', alpha = 0.15)
-    plt.fill_between([left-100, right+100], [ci_lowerloa[0], ci_lowerloa[0]], [ci_lowerloa[1], ci_lowerloa[1]],color = 'lightcoral', alpha = 0.15)
-    plt.xlim(left,right)
-
-    # plt.plot([left] * 2, list(ci_upperloa), c='grey', ls='--', alpha=0.5)
-    # plt.plot([left] * 2, list(ci_bias), c='grey', ls='--', alpha=0.5)
-    # plt.plot([left] * 2, list(ci_lowerloa), c='grey', ls='--', alpha=0.5)
-    
     x.set_title(title,fontsize=22)
     x.set_xlabel(x_label,fontsize=20)
     x.set_ylabel(y_label,fontsize=20)
@@ -1044,24 +1122,6 @@ def functional_corr_test(x,lf1,lf2,sampler,nnum,Np_of_decimals = 3):
             T_coll = np.append(T_coll,functional_corr_test_stat(x,inf_lst1,inf_lst2,sampler)[0])
         count += 1
     return [T_org, report_p_value(np.sum(T_coll > T_org)/count,Np_of_decimals)]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
