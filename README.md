@@ -11,7 +11,7 @@ There are examples for some functions.
 
 For some special usecases we also implementet a functional t-test, where you can compare two groups of functions.
 
-- [Special Example 1](https://github.com/segemart/statsmed/blob/main/examples/special_example1/Functional_t_test.ipynb) - Bland-Altman plots
+- [Special Example 1](https://github.com/segemart/statsmed/blob/main/examples/special_example1/Functional_t_test.ipynb) - Functional T-Test
 
 
 ### Installation
