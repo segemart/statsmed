@@ -9,6 +9,9 @@ import casadi as ca
 import itertools
 import random
 
+from scipy.stats import chi2_contingency
+from statsmodels.stats.contingency_tables import mcnemar
+
 # Shapiro-Wilk-Test returning Test-statistic and p-value
 def shapiro_wilk_test(x):
     [t,z] = scipy.stats.shapiro(x)
@@ -68,7 +71,7 @@ Output: depends on mode if mode = all the function prints mean with standard dev
 '''
 def get_desc(x,N_of_decimals = 2,mode = 'choose', quiet = False):
     distr = stdnorm_test(x,quiet = True)
-    mean_std = np.array([np.mean(x),np.std(x), np.NaN])
+    mean_std = np.array([np.mean(x),np.std(x), np.nan])
     normald = get_CI_normd(x)
     IQRd = np.append(np.array([np.percentile(x,50)]),np.percentile(x, (25,75)))
     SignRd = get_CI_signrankdist_CC(x)
@@ -153,22 +156,22 @@ def corr_two_gr(x,y,N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet 
     elif mode == 'normal distribution':
         if not quiet: print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
         if not quiet: print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
-        return np.stack([a[1,0],np.round(a[1,1],N_of_decimals),np.round(a[1,2],Np_of_decimals),np.round(a[1,3],N_of_decimals),np.round(a[1,4],N_of_decimals)],axis = 1)
+        return np.stack([a[1,0],np.round(a[1,1],N_of_decimals),np.round(a[1,2],Np_of_decimals),np.round(a[1,3],N_of_decimals),np.round(a[1,4],N_of_decimals)],axis = 0)
     elif mode == 'no normal distribution':
         if not quiet: print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
         if not quiet: print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
-        return np.stack([a[0,0],np.round(a[0,1],N_of_decimals),np.round(a[0,2],Np_of_decimals),np.round(a[0,3],N_of_decimals),np.round(a[0,4],N_of_decimals)],axis = 1)
+        return np.stack([a[0,0],np.round(a[0,1],N_of_decimals),np.round(a[0,2],Np_of_decimals),np.round(a[0,3],N_of_decimals),np.round(a[0,4],N_of_decimals)],axis = 0)
     else:
         if (x_distr[0] == 0) and (y_distr[0] == 0):
             if not quiet: print('The distribution of both variables show no significant difference from a normal distribution. Thus Pearson correlation is performed.')
             if not quiet: print(f'The Pearson correlation yields a r-value of: r = {a[1,1]:.{N_of_decimals}f} (' + report_p_value(a[1,2],Np_of_decimals) + ')')
             if not quiet: print(f'The Pearson correlation with 95%-confidence interval is: r = {a[1,1]:.{N_of_decimals}f} (CI: {a[1,3]:.{N_of_decimals}f} - {a[1,4]:.{N_of_decimals}f}; ' + report_p_value(a[1,2],Np_of_decimals) + ')')
-            return np.stack([a[1,0],np.round(a[1,1],N_of_decimals),np.round(a[1,2],Np_of_decimals),np.round(a[1,3],N_of_decimals),np.round(a[1,4],N_of_decimals)],axis = 1)
+            return np.stack([a[1,0],np.round(a[1,1],N_of_decimals),np.round(a[1,2],Np_of_decimals),np.round(a[1,3],N_of_decimals),np.round(a[1,4],N_of_decimals)],axis = 0)
         else:
             if not quiet: print('The distribution of at least one of both variables shows a significant difference from a normal distribution. Thus Spearman correlation is performed.')
             if not quiet: print(f'The Spearman correlation yields a r-value of: r = {a[0,1]:.{N_of_decimals}f} (' + report_p_value(a[0,2],Np_of_decimals) + ')')
             if not quiet: print(f'The Spearman correlation with 95%-confidence interval is: r = {a[0,1]:.{N_of_decimals}f} (CI: {a[0,3]:.{N_of_decimals}f} - {a[0,4]:.{N_of_decimals}f}; ' + report_p_value(a[0,2],Np_of_decimals) + ')')
-            return np.stack([a[0,0],np.round(a[0,1],N_of_decimals),np.round(a[0,2],Np_of_decimals),np.round(a[0,3],N_of_decimals),np.round(a[0,4],N_of_decimals)],axis = 1)
+            return np.stack([a[0,0],np.round(a[0,1],N_of_decimals),np.round(a[0,2],Np_of_decimals),np.round(a[0,3],N_of_decimals),np.round(a[0,4],N_of_decimals)],axis = 0)
 
 def func_fit(x,a,b):
     return a*x+b
@@ -352,6 +355,237 @@ def bland_altman_plot(x, y, fig_x,title='',x_label='Mean of raters',y_label='Dif
     fig_x.set_xlabel(x_label,fontsize=20)
     fig_x.set_ylabel(y_label,fontsize=20)
     fig_x.tick_params(labelsize=18)
+
+def halloa():
+    print('halloeawd')
+
+#x,y,independent,alternative='two-sided', N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet = False
+'''
+Return:
+0: Size of total population
+1: Number of positives
+2: Number of negatives
+3: Number of predicted positives
+4: Number of predicted negatives
+5: Number of true positives
+6: Number of true negatives
+7: Number of false positives
+8: Number of false negatives
+9: Prevalence
+10: Accuaracy
+11: Positive Predictive Value / Precision (PPV)
+12: Negative Predictive Value (NPV)
+13: False Omission Rate (FOR)
+14: False Discovery Rate (FDR)
+15: True Positive Rate / Sensitivity / Recall (TPR)
+16: True Negative Rate / Spezificity (TNR)
+17: False Positive Rate (FPR)
+18: False Negative Rate (FNR)
+19: Informedness / Youden's J statistic
+20: Prevalence threshold
+21: Balanced accuracy
+22: F1 score
+23: Positive likelihood ratio
+24: Negative likelihood ratio
+25: Diagnostics Odds Ratio (DOR)
+26: Jaccard Index
+'''
+def acc_sens(gt,x,N_of_decimals = 2,quiet = False):
+    if np.sum(((gt != 1).astype(int) + (gt != 0).astype(int)) != 1) > 0:
+        print('Ground truth is not indicated by ones and zeros')
+    if np.sum(((x != 1).astype(int) + (x != 0).astype(int)) != 1) > 0:
+        print('Evaluation parameter is not indicated by ones and zeros')
+    if len(gt) != len(x):
+        print('Length of ground truth and evaluation parameter are not equal')
+    total_population = len(gt)
+    if not quiet: print(f'Size of total population: {total_population:.{0}f}')
+    p = np.sum(gt == 1)
+    if not quiet: print(f'Number of positives: {p:.{0}f}')
+    n = np.sum(gt == 0)
+    if not quiet: print(f'Number of negatives: {n:.{0}f}')
+    pp = np.sum(x == 1)
+    if not quiet: print(f'Number of predicted positives: {pp:.{0}f}')
+    pn = np.sum(x == 0)
+    if not quiet: print(f'Number of predicted negatives: {pn:.{0}f}')
+    tp = np.sum((gt == 1) & (x == 1))
+    if not quiet: print(f'Number of true positives: {tp:.{0}f}')
+    tn = np.sum((gt == 0) & (x == 0))
+    if not quiet: print(f'Number of true negatives: {tn:.{0}f}')
+    fp = np.sum((gt == 0) & (x == 1))
+    if not quiet: print(f'Number of false positives: {fp:.{0}f}')
+    fn = np.sum((gt == 1) & (x == 0))
+    if not quiet: print(f'Number of false negatives: {fn:.{0}f}')
+    prevalence = np.nan
+    if total_population != 0:
+        prevalence = p/total_population
+    else:
+        print('Prevalence cannot be calculated as the size of total population is zero')
+    if not quiet: print(f'Prevalence: {prevalence:.{N_of_decimals}f}')
+    accuracy = np.nan
+    if total_population != 0:
+        accuracy = (tp + tn)/total_population
+    else:
+        print('Accuaracy cannot be calculated as the size of total population is zero')
+    if not quiet: print(f'Accuaracy: {accuracy:.{N_of_decimals}f}')
+    ppv = np.nan
+    if pp != 0:
+        ppv = tp/pp
+    else:
+        print('Positive Predictive Value / Precision (PPV) cannot be calculated as the number of predicted positives is zero')
+    if not quiet: print(f'Positive Predictive Value / Precision (PPV): {ppv:.{N_of_decimals}f}')
+    npv = np.nan
+    if pn != 0:
+        npv = tn/pn
+    else:
+        print('Negative Predictive Value (NPV) cannot be calculated as the number of predicted negatives is zero')
+    if not quiet: print(f'Negative Predictive Value (NPV): {npv:.{N_of_decimals}f}')
+    false_omission_rate = np.nan
+    if pn != 0:
+        false_omission_rate = fn/pn
+    else:
+        print('False Omission Rate (FOR) cannot be calculated as the number of predicted negatives is zero')
+    false_discovery_rate = np.nan
+    if pp != 0:
+        false_discovery_rate = fp/pp
+    else:
+        print('False Discovery Rate (FDR) cannot be calculated as the number of predicted positives is zero')
+    if np.round(false_omission_rate,N_of_decimals) != np.round((1-npv),N_of_decimals):
+        print('Problem with False Omission Rate (FOR)')
+    if np.round(false_discovery_rate,N_of_decimals) != np.round((1-ppv),N_of_decimals):
+        print('Problem with False Discovery Rate (FDR)')
+    if not quiet: print(f'False Omission Rate (FOR): {false_omission_rate:.{N_of_decimals}f}')
+    if not quiet: print(f'False Discovery Rate (FDR): {false_discovery_rate:.{N_of_decimals}f}')
+    tpr = np.nan
+    if p != 0:
+        tpr = tp/p
+    else:
+        print('True Positive Rate / Sensitivity / Recall (TPR) cannot be calculated as the number of positives is zero')
+    tnr = np.nan
+    if n != 0:
+        tnr = tn/n
+    else:
+        print('True Negative Rate / Spezificity (TNR) cannot be calculated as the number of negatives is zero')
+    fpr = np.nan
+    if n != 0:
+        fpr = fp/n
+    else:
+        print('False Positive Rate (FPR) cannot be calculated as the number of negatives is zero')
+    fnr = np.nan
+    if p != 0:
+        fnr = fn/p
+    else:
+        print('False Negative Rate (FNR) cannot be calculated as the number of positives is zero')
+    if np.round(tpr,N_of_decimals) != np.round((1-fnr),N_of_decimals):
+        print('Problem with True Positive Rate')
+    if np.round(tnr,N_of_decimals) != np.round((1-fpr),N_of_decimals):
+        print('Problem with True Negative Rate')
+    if np.round(fpr,N_of_decimals) != np.round((1-tnr),N_of_decimals):
+        print('Problem with False Positive Rate')
+    if np.round(fnr,N_of_decimals) != np.round((1-tpr),N_of_decimals):
+        print('Problem with False Negative Rate')
+    if not quiet: print(f'True Positive Rate / Sensitivity / Recall (TPR): {tpr:.{N_of_decimals}f}')
+    if not quiet: print(f'True Negative Rate / Spezificity (TNR): {tnr:.{N_of_decimals}f}')
+    if not quiet: print(f'False Positive Rate (FPR): {fpr:.{N_of_decimals}f}')
+    if not quiet: print(f'False Negative Rate (FNR): {fnr:.{N_of_decimals}f}')
+    informedness_youdenJ = np.nan
+    if (np.isnan(tpr) or np.isnan(tnr)) == False:
+        informedness_youdenJ = tpr + tnr -1
+    else:
+        print('Informedness / Youden\'s J statistic cannot be calculated as the True Positive Rate / Sensitivity / Recall (TPR) or the True Negative Rate / Spezificity (TNR) cannot be calculated')
+    if not quiet: print(f'Informedness / Youden\'s J statistic: {informedness_youdenJ:.{N_of_decimals}f}')
+    prevalence_threshold = np.nan
+    if ((np.isnan(tpr) or np.isnan(fpr)) == False) and ((tpr - fpr) != 0):
+        prevalence_threshold = (np.sqrt(tpr*fpr) - fpr)/(tpr - fpr)
+    else:
+        print('Prevalence threshold cannot be calculated as the True Positive Rate / Sensitivity / Recall (TPR) or the False Positive Rate (FPR) cannot be calculated')
+    if not quiet: print(f'Prevalence threshold: {prevalence_threshold:.{N_of_decimals}f}')
+    balanced_accuracy = np.nan
+    if (np.isnan(tpr) or np.isnan(tnr)) == False:
+        balanced_accuracy = (tpr + tnr)/2
+    else:
+        print('Balanced accuracy cannot be calculated as the True Positive Rate / Sensitivity / Recall (TPR) or the True Negative Rate / Spezificity (TNR) cannot be calculated')
+    if not quiet: print(f'Balanced accuracy: {balanced_accuracy:.{N_of_decimals}f}')
+    f1_score = np.nan
+    if ((np.isnan(ppv) or np.isnan(tpr)) == False) and ((ppv + tpr) != 0):
+        f1_score = (2 * ppv * tpr)/(ppv + tpr)
+    else:
+        print('F1 score cannot be calculated as the True Positive Rate / Sensitivity / Recall (TPR) or the Positive Predictive Value / Precision (PPV) cannot be calculated')
+    if np.round(f1_score,N_of_decimals) != np.round(((2*tp)/(2*tp + fp + fn)),N_of_decimals):
+        print('Problem with F1 score')
+    if not quiet: print(f'F1 score: {f1_score:.{N_of_decimals}f}')
+    LRpos = np.nan
+    if ((np.isnan(fpr) or np.isnan(tpr)) == False) and (fpr != 0):
+        LRpos = tpr/fpr
+    else:
+        print('Positive likelihood ratio score cannot be calculated as the True Positive Rate / Sensitivity / Recall (TPR) or the False Positive Rate (FPR) cannot be calculated')
+    if not quiet: print(f'Positive likelihood ratio: {LRpos:.{N_of_decimals}f}')
+    LRneg = np.nan
+    if ((np.isnan(fnr) or np.isnan(tnr)) == False) and (tnr != 0):
+        LRneg = fnr/tnr
+    else:
+        print('Negative likelihood ratio score cannot be calculated as the True Negative Rate / Spezificity (TNR) or the False Negative Rate (FNR) cannot be calculated')
+    if not quiet: print(f'Negative likelihood ratio: {LRneg:.{N_of_decimals}f}')
+    DiagOddsRatio = np.nan
+    if ((np.isnan(LRpos) or np.isnan(LRneg)) == False) and (LRneg != 0):
+        DiagOddsRatio = LRpos / LRneg
+    else:
+        print('Diagnostics Odds Ratio (DOR) cannot be calculated as the positive or negative likelihood ratio cannot be calculated')
+    if not quiet: print(f'Diagnostics Odds Ratio (DOR): {DiagOddsRatio:.{N_of_decimals}f}')
+    JaccardIndex = np.nan
+    if (tp + fn + fp) != 0:
+        JaccardIndex = tp/(tp + fn + fp)
+    else:
+        print('Jaccard Index cannot be calculated')
+    if not quiet: print(f'Jaccard Index: {JaccardIndex:.{N_of_decimals}f}')
+    res = np.array([total_population,p,n,pp,pn,tp,tn,fp,fn,prevalence,accuracy,ppv,npv,false_omission_rate,false_discovery_rate,tpr,tnr,fpr,fnr,informedness_youdenJ,prevalence_threshold,balanced_accuracy,f1_score,LRpos,LRneg,DiagOddsRatio,JaccardIndex])
+    return np.round(res,N_of_decimals)
+
+'''
+    acc = np.sum(((gt == 1) & (i == 1) & (modal == 1)) + ((gt == 0) & (i == 0) & (modal == 1))) / np.sum(modal == 1)
+    sen = np.sum((gt == 1) & (i == 1) & (modal == 1))/ np.sum((gt == 1) & (modal == 1))
+    spez = np.sum((gt == 0) & (i == 0) & (modal == 1))/ np.sum((gt == 0) & (modal == 1))
+    ppv = np.sum((gt == 1) & (i == 1) & (modal == 1))/ np.sum((i == 1) & (modal == 1))
+    npv = np.sum((gt == 0) & (i == 0) & (modal == 1))/ np.sum((i == 0) & (modal == 1))
+    print('acc %.1f'%(a*100))
+    print('sens %.1f'%(sen*100))
+    print('spez %.1f'%(spez*100))
+    print('ppv %.1f'%(ppv*100))
+    print('npv %.1f'%(npv*100))
+'''
+
+def mc_nemar_test(test1,test2,gt):
+    data = [[np.sum((test1 == gt) & (test2 == gt)), np.sum((test1 == gt) & (test2 != gt))],
+         [np.sum((test1 != gt) & (test2 == gt)), np.sum((test1 != gt) & (test2 != gt))]]
+    print(mcnemar(data, exact=True))
+
+def get_table_desc(var):
+    print(np.sum(np.isnan(var)))
+    print(get_desc(var[np.where(tzu.mri_mi == 1)[0]].dropna()))
+    print(get_desc(var[np.where(tzu.mri_mi == 0)[0]].dropna()))
+    x1 = var[np.where(tzu.mri_mi == 1)[0]].dropna()
+    x2 = var[np.where(tzu.mri_mi == 0)[0]].dropna()
+    print(scipy.stats.kruskal(x1, x2))
+    print([np.sum(x1),np.sum(x2)])
+    print([np.sum(x1)/len(np.where((tzu.mri_mi == 1))[0]),np.sum(x2)/len(np.where((tzu.mri_mi == 0))[0])])
+    print([np.sum(x1),np.sum(x2)]/np.sum(var == 1))
+    print(scipy.stats.chisquare([np.sum(x1),np.sum(x2)]))
+
+
+
+# obs = np.array([[10, 72], [20, 69]])
+# chi2, p, dof, ex = chi2_contingency(obs)
+# print(chi2, dof, p)
+
+def get_table_desc_m(var,var2):
+    print(scipy.stats.kruskal(x1, x2))
+    print([np.sum(x1),np.sum(x2)])
+    print([np.sum(x1)/len(np.where((tzu.mri_mi == 1) & (var2 == 1))[0]),np.sum(x2)/len(np.where((tzu.mri_mi == 0) & (var2 == 1))[0])])
+    print([np.sum(x1),np.sum(x2)]/np.sum(var == 1))
+    print(scipy.stats.chisquare([np.sum(x1),np.sum(x2)]))
+    obs = np.array([[np.sum(x1), len(np.where((tzu.mri_mi == 1) & (var2 == 1) & (var == 0))[0])], [np.sum(x2), len(np.where((tzu.mri_mi == 0) & (var2 == 1) & (var == 0))[0])]])
+    chi2, p, dof, ex = chi2_contingency(obs)
+    print(chi2, dof, p)
+
 
 
 def get_CI_normd(x):
@@ -678,13 +912,18 @@ def CI_plot_multi_sing(datas,legend_labels,labels,bound, x,title='',x_label='',y
 
 
 
-def bland_altman_bias_and_limits(data1, data2):
+def bland_altman_bias_and_limits(data1, data2,N_of_decimals = 2, quiet = False):
     data1     = np.asarray(data1)
     data2     = np.asarray(data2)
+    mean      = np.mean([data1, data2], axis=0)
     diff      = (data1 - data2)                   # Difference between data1 and data2
     md        = np.mean(diff)                   # Mean of the difference
     sd        = np.std(diff,ddof = 1, axis=0)            # Standard deviation of the difference
-    return np.array([md, 1.96*sd])
+    popt, pcov = scipy.optimize.curve_fit(func_fit, mean, diff)
+    if not quiet: print(f'The mean and upper and lower limit of error is: {md:.{N_of_decimals}f} \u00B1 {1.96*sd:.{N_of_decimals}f}')
+    if not quiet: print(f'The constant bias is: {popt[1]:.{N_of_decimals}f}')
+    if not quiet: print(f'The proportional bias is: {popt[0]:.{N_of_decimals}f}')
+    return np.array([md, 1.96*sd,popt[0],popt[1]])
 
 
 
