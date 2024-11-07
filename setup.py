@@ -14,7 +14,7 @@ setup(name='statsmed',
             'scipy>=1.10.1',
             'matplotlib>=3.6.2',
             'casadi>=3.6.2',
-            'statsmodels'>=0.12.2,
+            'statsmodels>=0.12.2',
         ],
         zip_safe=False,
         classifiers=[
