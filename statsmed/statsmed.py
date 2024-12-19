@@ -132,9 +132,9 @@ Output: depends on mode if mode = all the function prints Spearman correlation a
 '''
 def corr_two_gr(x,y,N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet = False):
     if not quiet: print('Testing normal distribution of first variable:')
-    x_distr = stdnorm_test(x,quiet)
+    x_distr = stdnorm_test(x,quiet = quiet)
     if not quiet: print('Testing normal distribution of second variable:')
-    y_distr = stdnorm_test(y,quiet)
+    y_distr = stdnorm_test(y,quiet = quiet)
     [r,p] = scipy.stats.spearmanr(x, y)
     s2 = (1 + np.power(r,2)/2)/(len(x)-3)
     confrs = [np.tanh(np.arctanh(r) - np.sqrt(s2) * scipy.stats.norm.ppf(0.975)) , np.tanh(np.arctanh(r) + np.sqrt(s2) * scipy.stats.norm.ppf(0.975))]
@@ -1212,11 +1212,17 @@ def qwilcox(x, m, n, lower_tail = True):
 # ouput: linearized function that connects the datapoints of x - data and y - data
 def punkt_def_function(x,xd, yd):
     if len(xd) == len(yd):
-        f = ((yd[1] - yd[0])/(xd[1]- xd[0])*x + (yd[0]-((yd[1] - yd[0])/(xd[1]-xd[0]))*xd[0])) * ((x>=xd[0])*(x<xd[1]))
+        if (xd[1]- xd[0]) != 0:
+            f = ((yd[1] - yd[0])/(xd[1]- xd[0])*x + (yd[0]-((yd[1] - yd[0])/(xd[1]-xd[0]))*xd[0])) * ((x>=xd[0])*(x<=xd[1]))
+        else:
+            f = yd[0] * ((x>=xd[0])*(x<=xd[1]))
         if len(xd) > 2:
             i=2
             while i < len(xd):
-                f = f+ ((yd[i] - yd[i-1])/(xd[i]- xd[i-1])*x + (yd[i-1]-((yd[i] - yd[i-1])/(xd[i]-xd[i-1]))*xd[i-1])) * ((x>=xd[i-1])*(x<xd[i]))
+                if (xd[i]- xd[i-1]) != 0:
+                    f = f+ ((yd[i] - yd[i-1])/(xd[i]- xd[i-1])*x + (yd[i-1]-((yd[i] - yd[i-1])/(xd[i]-xd[i-1]))*xd[i-1])) * ((x>xd[i-1])*(x<=xd[i]))
+                else:
+                    f = f+ yd[i] * ((x>xd[i-1])*(x<=xd[i]))
                 i += 1
         return f
     else:
