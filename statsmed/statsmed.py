@@ -22,6 +22,11 @@ def kolmogorow_smirnow_test(x):
     [t,z] = scipy.stats.kstest((x - np.mean(x))/np.std(x,ddof = 1),scipy.stats.norm.cdf)
     return ([t,z])
 
+# compare the distribution functions of two empirical distributions
+def komogorow_smirnow_two_emp_dist(x,y):
+    [t,z] = scipy.stats.ks_2samp(x,y)
+    return ([t,z])
+
 '''test of normality using the: 1. Shapiro-Wilk-Test and 2. Kolmogorow-Smirnow-Test
 Kolmogorow-Smirnow-Test requires normalization but not Shapiro-Wilk-Test
 Input: array of test-data - please exclude NaN or None Values.
@@ -355,6 +360,101 @@ def bland_altman_plot(x, y, fig_x,title='',x_label='Mean of raters',y_label='Dif
     fig_x.set_xlabel(x_label,fontsize=20)
     fig_x.set_ylabel(y_label,fontsize=20)
     fig_x.tick_params(labelsize=18)
+
+
+
+def boxplot_figure(data,independent,x,title='',x_label='',y_label='',x_ticklabels=[], color_points = 'g'):
+    boxprops = dict(color='black')
+    medianprops = dict(color='black')
+    plt.boxplot(data,widths = 0.6,boxprops=boxprops,medianprops=medianprops)
+    for i in np.arange(len(data)):
+        y = data[i]
+        x_v = np.random.uniform(i+1-0.3, i+1+0.3, size=len(y))
+        # plt.plot(x_v, y,'g.', alpha=0.3)
+        plt.scatter(x_v, y,alpha=0.3,color = color_points, s = 10)
+    mark_as_sig = 0
+    shuffler = np.arange(0,len(data))
+    shuffels = []
+    dist_shuffels = np.array([])
+    shuffler_it = itertools.combinations(shuffler, 2)
+    for subset in itertools.combinations(data, 2):
+        [t,p] = comp_two_gr_continuous(subset[0],subset[1],independent,Np_of_decimals = 3, quiet = True)
+        if p < 0.05:
+            mark_as_sig += 1
+            shuffels.append(next(shuffler_it))
+            dist_shuffels = np.append(dist_shuffels,shuffels[-1][1]-shuffels[-1][0])
+        else :
+            next(shuffler_it)
+    add_up = 0
+    add_down = 0
+    if len(shuffels) > 0:
+        for i in np.arange(np.max(dist_shuffels))+1:
+            added_up_last_r = np.array([])
+            added_down_last_r = np.array([])
+            for s in np.where(dist_shuffels == i)[0]:
+                if np.mod(np.mod(shuffels[s][0],i),2) == 0:
+                    if len(np.where(added_up_last_r == np.mod(shuffels[s][0],i))[0])==0:
+                        add_up += 1
+                        added_up_last_r = np.append(added_up_last_r,np.mod(shuffels[s][0],i))
+                elif np.mod(np.mod(shuffels[s][0],i),2) == 1:
+                    if len(np.where(added_down_last_r == np.mod(shuffels[s][0],i))[0])==0:
+                        add_down += 1
+                        added_down_last_r = np.append(added_down_last_r,np.mod(shuffels[s][0],i))
+        [normaly_low, normaly_high] = x.get_ybound()
+        ysize = normaly_high - normaly_low
+        x.set_ylim([normaly_low - add_down*0.05 * ysize, normaly_high + add_up*0.05 * ysize])
+        #x.set_ylim([normaly_low - 0.3 * ysize , normaly_high + 0.3 * ysize])
+        xsize = x.get_xbound()[1] - x.get_xbound()[0]
+        add_up = 0
+        add_down = 0
+        for i in np.arange(np.max(dist_shuffels))+1:
+            added_up_last_r = np.array([])
+            added_down_last_r = np.array([])
+            old_add_up = add_up
+            old_add_down = add_down
+            draw = -1
+            for s in np.where(dist_shuffels == i)[0]:
+                if np.mod(np.mod(shuffels[s][0],i),2) == 0:
+                    if len(np.where(added_up_last_r == np.mod(shuffels[s][0],i))[0])==0:
+                        add_up += 1
+                        added_up_last_r = np.append(added_up_last_r,np.mod(shuffels[s][0],i))
+                        draw = add_up
+                    else:
+                        draw = old_add_up + np.where(added_up_last_r == np.mod(shuffels[s][0],i))[0][0] +1
+                    plt.plot([shuffels[s][0]+1+0.0025*xsize, shuffels[s][1]+1-0.0025*xsize],[normaly_high + (draw-1)*0.05*ysize, normaly_high+ (draw-1)*0.05*ysize],'k-')
+                    plt.plot([shuffels[s][0]+1+0.0025*xsize,shuffels[s][0]+1+0.0025*xsize], [normaly_high + (draw-1)*0.05*ysize, normaly_high+ ((draw-1)*0.05-0.02)*ysize],'k-')
+                    plt.plot([shuffels[s][1]+1-0.0025*xsize,shuffels[s][1]+1-0.0025*xsize], [normaly_high + (draw-1)*0.05*ysize, normaly_high+ ((draw-1)*0.05-0.02)*ysize],'k-')
+                    [t,p] = comp_two_gr_continuous(data[shuffels[s][0]],data[shuffels[s][1]],independent,Np_of_decimals = 3, quiet = True)
+                    if p < 0.05 and p > 0.001:
+                        plt.text(shuffels[s][0]+1+0.0025*xsize, normaly_high + ((draw-1)*0.05+0.005)*ysize, 'p = %1.3f'%p,fontsize=15)
+                    else:
+                        plt.text(shuffels[s][0]+1+0.0025*xsize, normaly_high + ((draw-1)*0.05+0.005)*ysize, 'p < 0.001',fontsize=15)
+                elif np.mod(np.mod(shuffels[s][0],i),2) == 1:
+                    if len(np.where(added_down_last_r == np.mod(shuffels[s][0],i))[0])==0:
+                        add_down += 1
+                        added_down_last_r = np.append(added_down_last_r,np.mod(shuffels[s][0],i))
+                        draw = add_down
+                    else :
+                        draw = old_add_down + np.where(added_down_last_r == np.mod(shuffels[s][0],i))[0][0] +1
+                    plt.plot([shuffels[s][0]+1+0.0025*xsize, shuffels[s][1]+1-0.0025*xsize],[normaly_low - (draw-1)*0.05*ysize, normaly_low - (draw-1)*0.05*ysize],'k-')
+                    plt.plot([shuffels[s][0]+1+0.0025*xsize,shuffels[s][0]+1+0.0025*xsize], [normaly_low - (draw-1)*0.05*ysize, normaly_low - ((draw-1)*0.05-0.02)*ysize],'k-')
+                    plt.plot([shuffels[s][1]+1-0.0025*xsize,shuffels[s][1]+1-0.0025*xsize], [normaly_low - (draw-1)*0.05*ysize, normaly_low - ((draw-1)*0.05-0.02)*ysize],'k-')
+                    [t,p] = comp_two_gr_continuous(data[shuffels[s][0]],data[shuffels[s][1]],independent,Np_of_decimals = 3, quiet = True)
+                    if p < 0.05 and p > 0.001:
+                        plt.text(shuffels[s][0]+1+0.003*xsize, normaly_low - ((draw-1)*0.05-0.005)*ysize, 'p = %1.3f'%p,fontsize=15)
+                    else:
+                        plt.text(shuffels[s][0]+1+0.003*xsize, normaly_low - ((draw-1)*0.05-0.005)*ysize, 'p < 0.001',fontsize=15)
+    x.set_title(title,fontsize=26)
+    x.set_xlabel(x_label,fontsize=24)
+    x.set_ylabel(y_label,fontsize=24)
+    if len(x_ticklabels) > 0:
+        x.set_xticklabels(x_ticklabels)
+    plt.xticks(rotation=25)
+    plt.tight_layout()
+    x.tick_params(labelsize=22)
+
+
+
 
 def halloa():
     print('halloeawd')
