@@ -363,7 +363,7 @@ def bland_altman_plot(x, y, fig_x,title='',x_label='Mean of raters',y_label='Dif
 
 
 
-def boxplot_figure(data,independent,x,title='',x_label='',y_label='',x_ticklabels=[], color_points = 'g'):
+def boxplot_figure(x,data,independent,mode = 'choose',title='',x_label='',y_label='',x_ticklabels=[], color_points = 'g'):
     boxprops = dict(color='black')
     medianprops = dict(color='black')
     plt.boxplot(data,widths = 0.6,boxprops=boxprops,medianprops=medianprops)
@@ -378,7 +378,7 @@ def boxplot_figure(data,independent,x,title='',x_label='',y_label='',x_ticklabel
     dist_shuffels = np.array([])
     shuffler_it = itertools.combinations(shuffler, 2)
     for subset in itertools.combinations(data, 2):
-        [t,p] = comp_two_gr_continuous(subset[0],subset[1],independent,Np_of_decimals = 3, quiet = True)
+        [t,p] = comp_two_gr_continuous(subset[0],subset[1],independent,mode = mode, Np_of_decimals = 3, quiet = True)
         if p < 0.05:
             mark_as_sig += 1
             shuffels.append(next(shuffler_it))
@@ -424,7 +424,7 @@ def boxplot_figure(data,independent,x,title='',x_label='',y_label='',x_ticklabel
                     plt.plot([shuffels[s][0]+1+0.0025*xsize, shuffels[s][1]+1-0.0025*xsize],[normaly_high + (draw-1)*0.05*ysize, normaly_high+ (draw-1)*0.05*ysize],'k-')
                     plt.plot([shuffels[s][0]+1+0.0025*xsize,shuffels[s][0]+1+0.0025*xsize], [normaly_high + (draw-1)*0.05*ysize, normaly_high+ ((draw-1)*0.05-0.02)*ysize],'k-')
                     plt.plot([shuffels[s][1]+1-0.0025*xsize,shuffels[s][1]+1-0.0025*xsize], [normaly_high + (draw-1)*0.05*ysize, normaly_high+ ((draw-1)*0.05-0.02)*ysize],'k-')
-                    [t,p] = comp_two_gr_continuous(data[shuffels[s][0]],data[shuffels[s][1]],independent,Np_of_decimals = 3, quiet = True)
+                    [t,p] = comp_two_gr_continuous(data[shuffels[s][0]],data[shuffels[s][1]],independent,mode = mode, Np_of_decimals = 3, quiet = True)
                     if p < 0.05 and p > 0.001:
                         plt.text(shuffels[s][0]+1+0.0025*xsize, normaly_high + ((draw-1)*0.05+0.005)*ysize, 'p = %1.3f'%p,fontsize=15)
                     else:
@@ -439,7 +439,7 @@ def boxplot_figure(data,independent,x,title='',x_label='',y_label='',x_ticklabel
                     plt.plot([shuffels[s][0]+1+0.0025*xsize, shuffels[s][1]+1-0.0025*xsize],[normaly_low - (draw-1)*0.05*ysize, normaly_low - (draw-1)*0.05*ysize],'k-')
                     plt.plot([shuffels[s][0]+1+0.0025*xsize,shuffels[s][0]+1+0.0025*xsize], [normaly_low - (draw-1)*0.05*ysize, normaly_low - ((draw-1)*0.05-0.02)*ysize],'k-')
                     plt.plot([shuffels[s][1]+1-0.0025*xsize,shuffels[s][1]+1-0.0025*xsize], [normaly_low - (draw-1)*0.05*ysize, normaly_low - ((draw-1)*0.05-0.02)*ysize],'k-')
-                    [t,p] = comp_two_gr_continuous(data[shuffels[s][0]],data[shuffels[s][1]],independent,Np_of_decimals = 3, quiet = True)
+                    [t,p] = comp_two_gr_continuous(data[shuffels[s][0]],data[shuffels[s][1]],independent,mode = mode, Np_of_decimals = 3, quiet = True)
                     if p < 0.05 and p > 0.001:
                         plt.text(shuffels[s][0]+1+0.003*xsize, normaly_low - ((draw-1)*0.05-0.005)*ysize, 'p = %1.3f'%p,fontsize=15)
                     else:
@@ -449,9 +449,10 @@ def boxplot_figure(data,independent,x,title='',x_label='',y_label='',x_ticklabel
     x.set_ylabel(y_label,fontsize=24)
     if len(x_ticklabels) > 0:
         x.set_xticklabels(x_ticklabels)
-    plt.xticks(rotation=25)
+    plt.xticks(rotation=0)
     plt.tight_layout()
     x.tick_params(labelsize=22)
+    return x
 
 
 
