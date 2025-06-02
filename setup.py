@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 
 setup(name='statsmed',
-        version='0.0.10',
+        version='0.0.11',
         description='Statistics with Figures for medical data analysis',
         url='https://github.com/segemart/statsmed',
         author='Martin Segeroth',
@@ -15,6 +15,7 @@ setup(name='statsmed',
             'matplotlib>=3.6.2',
             'casadi>=3.6.2',
             'statsmodels>=0.12.2',
+            'scikit-learn>=1.6.1',
         ],
         zip_safe=False,
         classifiers=[
