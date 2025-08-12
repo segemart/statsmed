@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 
 setup(name='statsmed',
-        version='0.0.13',
+        version='0.0.14',
         description='Statistics with Figures for medical data analysis',
         url='https://github.com/segemart/statsmed',
         author='Martin Segeroth',
