@@ -667,7 +667,7 @@ def acc_sens(gt,x,N_of_decimals = 2,method = 'wilson',quiet = False):
     print('npv %.1f'%(npv*100))
 '''
 
-def compare_proportions(gt,x,y,N_of_decimals = 2,Np_of_decimals = 3,method = 'wilson',quiet = False):
+def compare_proportions_dep(gt,x,y,N_of_decimals = 2,Np_of_decimals = 3,method = 'wilson',quiet = False):
     if np.sum(((gt != 1).astype(int) + (gt != 0).astype(int)) != 1) > 0:
         print('Ground truth is not indicated by ones and zeros')
     if np.sum(((x != 1).astype(int) + (x != 0).astype(int)) != 1) > 0:
@@ -709,8 +709,43 @@ def compare_proportions(gt,x,y,N_of_decimals = 2,Np_of_decimals = 3,method = 'wi
 
     stat, pval = proportions_ztest(count, nobs)
 
-    if not quiet: print('Two-proportion z-test, treating the paired results as independent samples, yields a p-value of : ' + report_p_value(pval,Np_of_decimals) + f' (t-value: {stat:.{N_of_decimals}f})')
+    if not quiet: print('Two-proportion z-test, treating the paired results as independent samples, yields a p-value of: ' + report_p_value(pval,Np_of_decimals) + f' (t-value: {stat:.{N_of_decimals}f})')
     return np.array([result_mcnemar.pvalue,result_mcnemar_exact.pvalue,pval])
+
+def compare_proportions_ind_sens_precision(gt_x,x,gt_y,y,N_of_decimals = 2,Np_of_decimals = 3,method = 'wilson',quiet = False):
+    if np.sum(((gt_x != 1).astype(int) + (gt_x != 0).astype(int)) != 1) > 0:
+        print('First ground truth is not indicated by ones and zeros')
+    if np.sum(((x != 1).astype(int) + (x != 0).astype(int)) != 1) > 0:
+        print('First Evaluation parameter is not indicated by ones and zeros')
+    if np.sum(((gt_y != 1).astype(int) + (gt_y != 0).astype(int)) != 1) > 0:
+        print('Second ground truth is not indicated by ones and zeros')
+    if np.sum(((y != 1).astype(int) + (y != 0).astype(int)) != 1) > 0:
+        print('Second Evaluation parameter is not indicated by ones and zeros')
+    if len(gt_x) != len(x):
+        print('Length of first ground truth and first evaluation parameter are not equal')
+    if len(gt_y) != len(y):
+        print('Length of second ground truth and second evaluation parameter are not equal')
+    
+    tp_x = np.sum((gt_x == 1) & (x == 1))
+    fn_x = np.sum((gt_x == 1) & (x == 0))
+    fp_x = np.sum((gt_x == 0) & (x == 1))
+
+    tp_y = np.sum((gt_y == 1) & (y == 1))
+    fn_y = np.sum((gt_y == 1) & (y == 0))
+    fp_y = np.sum((gt_y == 0) & (y == 1))
+    
+    count_sens = np.array([tp_x, tp_y])
+    nobs_sens = np.array([tp_x + fn_x, tp_y + fn_y])
+
+    z_sens, p_sens = proportions_ztest(count_sens, nobs_sens, alternative="two-sided")
+    if not quiet: print('Two-proportion z-test for independent samples yields a p-value for the sensitivity of: ' + report_p_value(p_sens,Np_of_decimals) + f' (t-value: {z_sens:.{N_of_decimals}f})')
+    
+    count_precision = np.array([tp_x, tp_y])
+    nobs_precision  = np.array([tp_x + fp_x, tp_y + fp_y])
+    z_precision, p_precision = proportions_ztest(count_precision, nobs_precision, alternative="two-sided")
+
+    if not quiet: print('Two-proportion z-test for independent samples yields a p-value for the precision of: ' + report_p_value(p_precision,Np_of_decimals) + f' (t-value: {z_precision:.{N_of_decimals}f})')
+    return np.array([p_sens,p_precision])
 
 
 def ROC_analysis(true_base,pred_value,positive_label,nsamples):
