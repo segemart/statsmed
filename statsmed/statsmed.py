@@ -8,7 +8,7 @@ from scipy.optimize import curve_fit
 import casadi as ca
 import itertools
 import random
-from statsmodels.stats.proportion import proportion_confint
+from statsmodels.stats.proportion import proportion_confint, proportions_ztest
 from sklearn import metrics
 from sklearn.metrics import roc_auc_score
 
@@ -537,56 +537,60 @@ def acc_sens(gt,x,N_of_decimals = 2,method = 'wilson',quiet = False):
     if pp != 0:
         ppv = tp/pp
         ppv_lc, ppv_uc = proportion_confint(tp, pp, method=method)
+        if not quiet: print(f'Positive Predictive Value / Precision (PPV): {ppv * 100:.{N_of_decimals}f}% (CI: {ppv_lc * 100:.{N_of_decimals}f}% - {ppv_uc * 100:.{N_of_decimals}f}%)')
     else:
         print('Positive Predictive Value / Precision (PPV) cannot be calculated as the number of predicted positives is zero')
-    if not quiet: print(f'Positive Predictive Value / Precision (PPV): {ppv * 100:.{N_of_decimals}f}% (CI: {ppv_lc * 100:.{N_of_decimals}f}% - {ppv_uc * 100:.{N_of_decimals}f}%)')
     npv = np.nan
     if pn != 0:
         npv = tn/pn
         npv_lc, npv_uc = proportion_confint(tn, pn, method=method)
+        if not quiet: print(f'Negative Predictive Value (NPV): {npv * 100:.{N_of_decimals}f}% (CI: {npv_lc * 100:.{N_of_decimals}f}% - {npv_uc * 100:.{N_of_decimals}f}%)')
     else:
         print('Negative Predictive Value (NPV) cannot be calculated as the number of predicted negatives is zero')
-    if not quiet: print(f'Negative Predictive Value (NPV): {npv * 100:.{N_of_decimals}f}% (CI: {npv_lc * 100:.{N_of_decimals}f}% - {npv_uc * 100:.{N_of_decimals}f}%)')
     false_omission_rate = np.nan
     if pn != 0:
         false_omission_rate = fn/pn
         false_omission_rate_lc, false_omission_rate_uc = proportion_confint(fn, pn, method=method)
+        if not quiet: print(f'False Omission Rate (FOR): {false_omission_rate * 100:.{N_of_decimals}f}% (CI: {false_omission_rate_lc * 100:.{N_of_decimals}f}% - {false_omission_rate_uc * 100:.{N_of_decimals}f}%)')
     else:
         print('False Omission Rate (FOR) cannot be calculated as the number of predicted negatives is zero')
     false_discovery_rate = np.nan
     if pp != 0:
         false_discovery_rate = fp/pp
         false_discovery_rate_lc, false_discovery_rate_uc = proportion_confint(fp, pp, method=method)
+        if not quiet: print(f'False Discovery Rate (FDR): {false_discovery_rate * 100:.{N_of_decimals}f}% (CI: {false_discovery_rate_lc * 100:.{N_of_decimals}f}% - {false_discovery_rate_uc * 100:.{N_of_decimals}f}%)')
     else:
         print('False Discovery Rate (FDR) cannot be calculated as the number of predicted positives is zero')
     if np.round(false_omission_rate,N_of_decimals) != np.round((1-npv),N_of_decimals):
         print('Problem with False Omission Rate (FOR)')
     if np.round(false_discovery_rate,N_of_decimals) != np.round((1-ppv),N_of_decimals):
         print('Problem with False Discovery Rate (FDR)')
-    if not quiet: print(f'False Omission Rate (FOR): {false_omission_rate * 100:.{N_of_decimals}f}% (CI: {false_omission_rate_lc * 100:.{N_of_decimals}f}% - {false_omission_rate_uc * 100:.{N_of_decimals}f}%)')
-    if not quiet: print(f'False Discovery Rate (FDR): {false_discovery_rate * 100:.{N_of_decimals}f}% (CI: {false_discovery_rate_lc * 100:.{N_of_decimals}f}% - {false_discovery_rate_uc * 100:.{N_of_decimals}f}%)')
     tpr = np.nan
     if p != 0:
         tpr = tp/p
         tpr_lc, tpr_uc = proportion_confint(tp, p, method=method)
+        if not quiet: print(f'True Positive Rate / Sensitivity / Recall (TPR): {tpr * 100:.{N_of_decimals}f}% (CI: {tpr_lc * 100:.{N_of_decimals}f}% - {tpr_uc * 100:.{N_of_decimals}f}%)')
     else:
         print('True Positive Rate / Sensitivity / Recall (TPR) cannot be calculated as the number of positives is zero')
     tnr = np.nan
     if n != 0:
         tnr = tn/n
         tnr_lc, tnr_uc = proportion_confint(tn, n, method=method)
+        if not quiet: print(f'True Negative Rate / Spezificity (TNR): {tnr * 100:.{N_of_decimals}f}% (CI: {tnr_lc * 100:.{N_of_decimals}f}% - {tnr_uc * 100:.{N_of_decimals}f}%)')
     else:
         print('True Negative Rate / Spezificity (TNR) cannot be calculated as the number of negatives is zero')
     fpr = np.nan
     if n != 0:
         fpr = fp/n
         fpr_lc, fpr_uc = proportion_confint(fp, n, method=method)
+        if not quiet: print(f'False Positive Rate (FPR): {fpr * 100:.{N_of_decimals}f}% (CI: {fpr_lc * 100:.{N_of_decimals}f}% - {fpr_uc * 100:.{N_of_decimals}f}%)')
     else:
         print('False Positive Rate (FPR) cannot be calculated as the number of negatives is zero')
     fnr = np.nan
     if p != 0:
         fnr = fn/p
         fnr_lc, fnr_uc = proportion_confint(fn, p, method=method)
+        if not quiet: print(f'False Negative Rate (FNR): {fnr * 100:.{N_of_decimals}f}% (CI: {fnr_lc * 100:.{N_of_decimals}f}% - {fnr_uc * 100:.{N_of_decimals}f}%)')
     else:
         print('False Negative Rate (FNR) cannot be calculated as the number of positives is zero')
     if np.round(tpr,N_of_decimals) != np.round((1-fnr),N_of_decimals):
@@ -597,10 +601,6 @@ def acc_sens(gt,x,N_of_decimals = 2,method = 'wilson',quiet = False):
         print('Problem with False Positive Rate')
     if np.round(fnr,N_of_decimals) != np.round((1-tpr),N_of_decimals):
         print('Problem with False Negative Rate')
-    if not quiet: print(f'True Positive Rate / Sensitivity / Recall (TPR): {tpr * 100:.{N_of_decimals}f}% (CI: {tpr_lc * 100:.{N_of_decimals}f}% - {tpr_uc * 100:.{N_of_decimals}f}%)')
-    if not quiet: print(f'True Negative Rate / Spezificity (TNR): {tnr * 100:.{N_of_decimals}f}% (CI: {tnr_lc * 100:.{N_of_decimals}f}% - {tnr_uc * 100:.{N_of_decimals}f}%)')
-    if not quiet: print(f'False Positive Rate (FPR): {fpr * 100:.{N_of_decimals}f}% (CI: {fpr_lc * 100:.{N_of_decimals}f}% - {fpr_uc * 100:.{N_of_decimals}f}%)')
-    if not quiet: print(f'False Negative Rate (FNR): {fnr * 100:.{N_of_decimals}f}% (CI: {fnr_lc * 100:.{N_of_decimals}f}% - {fnr_uc * 100:.{N_of_decimals}f}%)')
     informedness_youdenJ = np.nan
     if (np.isnan(tpr) or np.isnan(tnr)) == False:
         informedness_youdenJ = tpr + tnr -1
@@ -613,7 +613,7 @@ def acc_sens(gt,x,N_of_decimals = 2,method = 'wilson',quiet = False):
     else:
         print('Prevalence threshold cannot be calculated as the True Positive Rate / Sensitivity / Recall (TPR) or the False Positive Rate (FPR) cannot be calculated')
     if not quiet: print(f'Prevalence threshold: {prevalence_threshold:.{N_of_decimals}f}')
-    balanced_accuracy = np.nanis
+    balanced_accuracy = np.nan
     if (np.isnan(tpr) or np.isnan(tnr)) == False:
         balanced_accuracy = (tpr + tnr)/2
     else:
@@ -667,6 +667,51 @@ def acc_sens(gt,x,N_of_decimals = 2,method = 'wilson',quiet = False):
     print('npv %.1f'%(npv*100))
 '''
 
+def compare_proportions(gt,x,y,N_of_decimals = 2,Np_of_decimals = 3,method = 'wilson',quiet = False):
+    if np.sum(((gt != 1).astype(int) + (gt != 0).astype(int)) != 1) > 0:
+        print('Ground truth is not indicated by ones and zeros')
+    if np.sum(((x != 1).astype(int) + (x != 0).astype(int)) != 1) > 0:
+        print('First Evaluation parameter is not indicated by ones and zeros')
+    if np.sum(((y != 1).astype(int) + (y != 0).astype(int)) != 1) > 0:
+        print('Second Evaluation parameter is not indicated by ones and zeros')
+    if len(gt) != len(x):
+        print('Length of ground truth and first evaluation parameter are not equal')
+    if len(gt) != len(y):
+        print('Length of ground truth and second evaluation parameter are not equal')
+    total_population = len(gt)
+    if not quiet: print(f'Size of total population: {total_population:.{0}f}')
+    p = np.sum(gt == 1)
+    if not quiet: print(f'Number of positives: {p:.{0}f}')
+    n = np.sum(gt == 0)
+    if not quiet: print(f'Number of negatives: {n:.{0}f}')
+
+    data = [[np.sum((x == gt) & (y == gt)), np.sum((x == gt) & (y != gt))],
+            [np.sum((x != gt) & (y == gt)), np.sum((x != gt) & (y != gt))]]
+    print(mcnemar(data, exact=True))
+
+    result_mcnemar = mcnemar(data, exact=False, correction=True)
+    if not quiet: print('McNemar’s test with continuity-corrected chi-square approximation for paired binary outcomes yields a p-value of: ' + report_p_value(result_mcnemar.pvalue,Np_of_decimals) + f' (t-value: {result_mcnemar.statistic:.{N_of_decimals}f})')
+    result_mcnemar_exact = mcnemar(data, exact=True)
+    if not quiet: print('McNemar’s test using the binomial distribution of discordant pairs for paired binary outcomes yields a p-value of: ' + report_p_value(result_mcnemar_exact.pvalue,Np_of_decimals) + f' (t-value: {result_mcnemar_exact.statistic:.{N_of_decimals}f})')
+
+    tp_x = np.sum((gt == 1) & (x == 1))
+    tn_x = np.sum((gt == 0) & (x == 0))
+    fp_x = np.sum((gt == 0) & (x == 1))
+    fn_x = np.sum((gt == 1) & (x == 0))
+
+    tp_y = np.sum((gt == 1) & (y == 1))
+    tn_y = np.sum((gt == 0) & (y == 0))
+    fp_y = np.sum((gt == 0) & (y == 1))
+    fn_y = np.sum((gt == 1) & (y == 0))
+
+    count = [tp_x + tn_x, tp_y + tn_y]
+    nobs = [total_population, total_population]
+
+    stat, pval = proportions_ztest(count, nobs)
+
+    if not quiet: print('Two-proportion z-test, treating the paired results as independent samples, yields a p-value of : ' + report_p_value(pval,Np_of_decimals) + f' (t-value: {stat:.{N_of_decimals}f})')
+    return np.array([result_mcnemar.pvalue,result_mcnemar_exact.pvalue,pval])
+
 
 def ROC_analysis(true_base,pred_value,positive_label,nsamples):
     fpr, tpr, thresholds = metrics.roc_curve(true_base, pred_value, pos_label=positive_label)
@@ -690,7 +735,7 @@ def ROC_analysis(true_base,pred_value,positive_label,nsamples):
     return [auc,np.percentile(bootstrapped_scores, (2.5, 97.5)),p,[sen[maxyouden],spez[maxyouden]],thresholds[maxyouden],thresholds,sen,spez]
 
 
-def ROC_fig(true_base,pred_value,positive_label,nsamples,label2,x,title=''):
+def ROC_fig(true_base,pred_value,positive_label,nsamples=1000,label2='',x=plt.gca(),title=''):
     uuu = ROC_analysis(np.array(true_base), np.array(pred_value), positive_label,nsamples)
     lw = 2
     plt.plot(1-uuu[-1], uuu[-2], color='purple',
