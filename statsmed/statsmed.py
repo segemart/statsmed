@@ -10,10 +10,19 @@ import itertools
 import random
 from statsmodels.stats.proportion import proportion_confint, proportions_ztest
 from sklearn import metrics
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve, auc
 
 from scipy.stats import chi2_contingency
 from statsmodels.stats.contingency_tables import mcnemar
+
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LassoCV, LogisticRegressionCV
+from sklearn.metrics import mean_squared_error, r2_score
+import pandas as pd
+
+
 
 # Shapiro-Wilk-Test returning Test-statistic and p-value
 def shapiro_wilk_test(x):
@@ -799,6 +808,64 @@ def ROC_fig(true_base,pred_value,positive_label,nsamples=1000,label2='',x=plt.gc
     # print("PPV")
     # print((np.sum((true_base == positive_label)))/(np.sum((true_base == positive_label)) + np.sum((true_base != positive_label) & (pred_value > np.sort(uuu[-3])[np.min(np.where(np.sort(uuu[-1]) >= 0.70)[0])]))))
 
+def multivariate_linear_lasso(data,target,columns=[],target_name='target',N_of_decimals = 2,quiet = False):
+    data = np.array(data).transpose()
+    target = np.array(target)
+    Xtr, Xte, ytr, yte = train_test_split(data, target, test_size=0.2, random_state=0)
+    pipe = Pipeline([
+                    ("scaler", StandardScaler()),
+                    ("lasso", LassoCV(cv=5, max_iter=10000, random_state=0, n_jobs=-1))
+                    ])
+    pipe.fit(Xtr, ytr)
+    yhat = pipe.predict(Xte)
+    rmse = np.sqrt(mean_squared_error(yte, yhat))
+    r2   = r2_score(yte, yhat)
+    best_alpha = pipe.named_steps["lasso"].alpha_
+    print(f"Best alpha: {best_alpha:.6g}")
+    print(f"Test RMSE: {rmse:.3f}")
+    print(f"Test R^2 : {r2:.3f}")
+    lasso = pipe.named_steps["lasso"]
+    coef_df = (
+        pd.DataFrame({"feature": columns, "coef": lasso.coef_})
+        .assign(abs_coef=lambda d: d["coef"].abs())
+        .query("abs_coef > 1e-12")                     # treat tiny values as zero
+        .sort_values("abs_coef", ascending=False)
+        .drop(columns="abs_coef")
+        .reset_index(drop=True)
+    )
+    print("\nNon-zero coefficients (standardized scale), sorted by |coef|:")
+    print(coef_df)           # full table
+    print("\nTop 10:")
+    print(coef_df.head(10))
+    return coef_df
+
+def multivariate_logistic_lasso(data,target,columns=[],target_name='target',N_of_decimals = 2,quiet = False):
+    data = np.array(data).transpose()
+    target = np.array(target)
+    Xtr, Xte, ytr, yte = train_test_split(data, target, test_size=0.2, stratify=target,random_state=0)
+    pipe = Pipeline([
+        ("scaler", StandardScaler()),
+        ("logit", LogisticRegressionCV(
+            penalty="l1", solver="saga", Cs=10, cv=5, scoring="roc_auc",
+            max_iter=10000, n_jobs=-1, refit=True
+        ))
+    ])
+    pipe.fit(Xtr, ytr)
+    proba = pipe.predict_proba(Xte)[:, 1]
+    fpr, tpr, thresholds = roc_curve(yte, proba)
+    roc_auc = auc(fpr, tpr)
+    if not quiet: print(f"AUC: {roc_auc:.3f}")
+
+    # --- Non-zero coefficients (sorted by |coef| desc) ---
+    coef = pipe.named_steps["logit"].coef_.ravel()
+    coef_df = (pd.DataFrame({"feature": columns, "coef": coef})
+            .assign(abs_coef=lambda d: d["coef"].abs())
+            .query("abs_coef > 1e-12")
+            .sort_values("abs_coef", ascending=False)
+            .drop(columns="abs_coef")
+            .reset_index(drop=True))
+    if not quiet: print(coef_df)
+    return roc_auc,yte, proba
 
 
 def mc_nemar_test(test1,test2,gt):
