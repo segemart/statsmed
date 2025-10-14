@@ -45,3 +45,23 @@ Statsmed also allows you to generate figures quickly. See for example [Example 3
 ![Boxplots](examples/example6/Boxplots_subplots.png)
 
 ![ROC curves](examples/example7/ROCurve.png)
+
+### Cite
+
+If you use Statsmed in your research, please cite:
+
+Segeroth, M. (2025). Statsmed: Statistics with Figures for medical data analysis (v0.0.18). GitHub. Available at [GitHub repository](https://github.com/segemart/statsmed).
+
+```bibtex
+@software{Segeroth_Statsmed_2025,
+  author    = {Martin Segeroth},
+  title     = {Statsmed: Statistics with Figures for medical data analysis},
+  year      = {2025},
+  url       = {https://github.com/segemart/statsmed},
+  publisher = {GitHub}
+}
+```
+
+### License
+
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
