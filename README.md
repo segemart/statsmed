@@ -8,6 +8,8 @@ There are examples for some functions.
 - [Example 3](https://github.com/segemart/statsmed/blob/main/examples/example3/Correlations.ipynb) - Pearson's and Spearman's correlation with figures
 - [Example 4](https://github.com/segemart/statsmed/blob/main/examples/example4/Comparision_continuous.ipynb) - Comparison of two groups with continuous variables
 - [Example 5](https://github.com/segemart/statsmed/blob/main/examples/example5/Bland-Altman-Plots.ipynb) - Bland-Altman plots
+- [Example 6](https://github.com/segemart/statsmed/blob/main/examples/example6/Boxplots.ipynb) - Bland-Altman plots
+
 
 For some special usecases we also implementet a functional t-test, where you can compare two groups of functions.
 
