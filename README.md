@@ -1,6 +1,6 @@
 # Statsmed
 
-Statsmed is designed to perform statistical analysis of medical data, but may also be used for various other datasets. It gives you an fast overview of your data and allows you to perform tests and create figures. 
+Statsmed is designed to perform statistical analysis of medical data, but may also be used for various other datasets. It gives you a fast overview of your data and allows you to perform tests and create figures. 
 There are examples for some functions.
 
 - [Example 1](https://github.com/segemart/statsmed/blob/main/examples/example1/Tests_normal_distribution.ipynb) - Test for normal distribution
@@ -9,9 +9,12 @@ There are examples for some functions.
 - [Example 4](https://github.com/segemart/statsmed/blob/main/examples/example4/Comparision_continuous.ipynb) - Comparison of two groups with continuous variables
 - [Example 5](https://github.com/segemart/statsmed/blob/main/examples/example5/Bland-Altman-Plots.ipynb) - Bland-Altman plots
 - [Example 6](https://github.com/segemart/statsmed/blob/main/examples/example6/Boxplots.ipynb) - Boxplots
+- [Example 7](https://github.com/segemart/statsmed/blob/main/examples/example7/ROC-Curves.ipynb) - ROC curves and AUC
+- [Example 8](https://github.com/segemart/statsmed/blob/main/examples/example8/Accuracy.ipynb) - Classification accuracy
+- [Example 9](https://github.com/segemart/statsmed/blob/main/examples/example9/multivariate_linear_lasso.ipynb) - Multivariate linear regression and Lasso
 
 
-For some special usecases we also implementet a functional t-test, where you can compare two groups of functions.
+For some special use cases we also implemented a functional t-test, where you can compare two groups of functions.
 
 - [Special Example 1](https://github.com/segemart/statsmed/blob/main/examples/special_example1/Functional_t_test.ipynb) - Functional T-Test
 
@@ -33,8 +36,12 @@ The idea was that you can perform quickly basic medical data analysis and create
 
 ### Usage
 
-Statsmed also allows you to generate figures quickly. See for example [Example 3](https://github.com/segemart/statsmed/blob/main/examples/example3/Correlations.ipynb) or [Example 5](https://github.com/segemart/statsmed/blob/main/examples/example5/Bland-Altman-Plots.ipynb), where we generated plots to show some correlations and Bland-Altman plots.
+Statsmed also allows you to generate figures quickly. See for example [Example 3](https://github.com/segemart/statsmed/blob/main/examples/example3/Correlations.ipynb), [Example 5](https://github.com/segemart/statsmed/blob/main/examples/example5/Bland-Altman-Plots.ipynb), [Example 6](https://github.com/segemart/statsmed/blob/main/examples/example6/Boxplots.ipynb), and [Example 7](https://github.com/segemart/statsmed/blob/main/examples/example7/ROC-Curves.ipynb), where we generated plots to show correlations, Bland-Altman plots, boxplots, and ROC curves.
 
 ![Correlations](examples/example3/Corr_subplots.png)
 
 ![Bland-Altman plots](examples/example5/Bland_Altman_subplots.png)
+
+![Boxplots](examples/example6/Boxplots_subplots.png)
+
+![ROC curves](examples/example7/ROC_subplots.png)
