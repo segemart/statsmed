@@ -44,4 +44,4 @@ Statsmed also allows you to generate figures quickly. See for example [Example 3
 
 ![Boxplots](examples/example6/Boxplots_subplots.png)
 
-![ROC curves](examples/example7/ROC_subplots.png)
+![ROC curves](examples/example7/ROCurve.png)
