@@ -1715,10 +1715,10 @@ def report_rr(res, term, N_of_decimals=3, Np_of_decimals=3):
 
 def poisson_negbin_rate_change(
     df: pd.DataFrame,
-    id_col: str,
     time_col: str,
     count_col: str,
-    timepoints: list,
+    id_col: str | None = None,
+    timepoints: list | None = None,
     time_as: str = "categorical",    # "categorical" or "trend"
     exposure_col: str | None = None,
     model: str = "poisson",          # "poisson" or "negbin"
@@ -1729,51 +1729,71 @@ def poisson_negbin_rate_change(
     quiet: bool = False,
 ):
     """
-    Compares counts across timepoints for the SAME units (CTS).
+    Compares counts across timepoints using Poisson or Negative Binomial regression.
 
     Parameters
     ----------
-    timepoints : list
-        Ordered list of timepoint labels present in *time_col*.
-        The **first** element is the reference.  Must contain >= 2 elements.
+    df : DataFrame
+        One row per (unit, time) or per time if there is only one unit.
+    time_col : str
+        Column that identifies the time-point (e.g. year, month-year).
+    count_col : str
+        Column with integer counts >= 0.
+    id_col : str or None, default None
+        Column that identifies the observational unit (e.g. patient, device,
+        hospital).  When None, no cluster-robust SE and no fixed effects are
+        used (cluster_se and fixed_effects are silently set to False).
+    timepoints : list or None, default None
+        Ordered list of timepoint labels.  The **first** element is the
+        reference.  When None, all unique values in *time_col* are used,
+        sorted ascending; the smallest value becomes the reference.
     time_as : str, default "categorical"
         - "categorical": dummy-coded timepoints (Treatment contrast, ref = first).
           Returns one Rate Ratio per non-reference timepoint vs. reference.
         - "trend": maps timepoints to 0, 1, 2, ... (ordinal) and fits a single
           linear predictor.  Returns one Rate Ratio per time-unit increase.
+    exposure_col : str or None, default None
+        Column with exposure (e.g. observation time, population-at-risk).
+        Enters as log-offset (Poisson) or multiplicative exposure (NegBin).
+    model : str, default "poisson"
+        "poisson" or "negbin" (Negative Binomial NB2).
 
     Returns
     -------
     (result_dict, fit)
-        - categorical: result_dict is {timepoint_label: {"RR":…, "CI_low":…, "CI_high":…, "p":…}, …}
+        - categorical: result_dict is {timepoint_label: {"RR":…, "CI_low":…, …}, …}
         - trend:       result_dict is {"RR":…, "CI_low":…, "CI_high":…, "p":…}
-        Both include metadata keys "model", "fixed_effects", "cluster_se".
-        fit is the statsmodels result object.
-
-    Notes
-    -----
-    - exposure_col (e.g. observation time, population-at-risk) enters as log-offset (Poisson)
-      or multiplicative exposure (NegBin).
-    - fixed_effects=True creates dummies for each unit (can be heavy for >10 k units).
-    - cluster_se=True gives cluster-robust SE against within-unit correlation.
-    - model="negbin" uses NegativeBinomial (NB2) and estimates the overdispersion parameter alpha.
+        Both include metadata.  fit is the statsmodels result object.
     """
 
+    # --- handle id_col=None ---------------------------------------------------
+    if id_col is None:
+        cluster_se = False
+        fixed_effects = False
+
+    # --- auto-detect timepoints if not given ----------------------------------
+    if timepoints is None:
+        timepoints = sorted(df[time_col].unique())
+    else:
+        # cast timepoints to match column dtype
+        col_dtype = df[time_col].dtype
+        try:
+            timepoints = [col_dtype.type(tp) for tp in timepoints]
+        except (ValueError, TypeError):
+            pass
+
     if len(timepoints) < 2:
-        raise ValueError("timepoints must contain at least 2 elements.")
+        raise ValueError("timepoints must contain at least 2 elements (found in time_col or provided).")
 
     if time_as not in ("categorical", "trend"):
         raise ValueError("time_as must be 'categorical' or 'trend'.")
 
-    # --- cast timepoints to match column dtype --------------------------------
-    col_dtype = df[time_col].dtype
-    try:
-        timepoints = [col_dtype.type(tp) for tp in timepoints]
-    except (ValueError, TypeError):
-        pass  # keep original types; isin will do best-effort matching
-
     # --- filter & copy -------------------------------------------------------
-    keep_cols = [id_col, time_col, count_col] + ([exposure_col] if exposure_col else [])
+    keep_cols = [time_col, count_col]
+    if id_col is not None:
+        keep_cols.insert(0, id_col)
+    if exposure_col is not None:
+        keep_cols.append(exposure_col)
     d = df.loc[df[time_col].isin(timepoints), keep_cols].copy()
     if d.empty:
         raise ValueError("No rows found for the given timepoints. Check timepoints and time_col.")
@@ -1863,12 +1883,14 @@ def poisson_negbin_rate_change(
         return rr, fit
 
 
-def _fit_count_model(formula, data, model, offset, id_col, cluster_se):
+def _fit_count_model(formula, data, model, offset, id_col=None, cluster_se=False):
     """Internal helper: fit Poisson or NegBin GLM/discrete model."""
+
+    use_cluster = cluster_se and id_col is not None
 
     if model.lower() == "poisson":
         fam = sm.families.Poisson()
-        if cluster_se:
+        if use_cluster:
             fit = smf.glm(formula=formula, data=data, family=fam, offset=offset).fit(
                 cov_type="cluster", cov_kwds={"groups": data[id_col]}
             )
@@ -1878,7 +1900,7 @@ def _fit_count_model(formula, data, model, offset, id_col, cluster_se):
 
     elif model.lower() in ("negbin", "negativebinomial", "nb"):
         exposure = np.exp(offset.values)
-        if cluster_se:
+        if use_cluster:
             fit = smf.negativebinomial(formula=formula, data=data, exposure=exposure).fit(
                 cov_type="cluster", cov_kwds={"groups": data[id_col]}, disp=0
             )
