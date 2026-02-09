@@ -12,6 +12,7 @@ There are examples for some functions.
 - [Example 7](https://github.com/segemart/statsmed/blob/main/examples/example7/ROC-Curves.ipynb) - ROC curves and AUC
 - [Example 8](https://github.com/segemart/statsmed/blob/main/examples/example8/Accuracy.ipynb) - Classification accuracy
 - [Example 9](https://github.com/segemart/statsmed/blob/main/examples/example9/multivariate_linear_lasso.ipynb) - Multivariate linear regression and Lasso
+- [Example 10](https://github.com/segemart/statsmed/blob/main/examples/example10/Poisson_NegBin_Rate_Change.ipynb) - Poisson / Negative Binomial Rate Change
 
 
 For some special use cases we also implemented a functional t-test, where you can compare two groups of functions.

@@ -22,6 +22,9 @@ from sklearn.linear_model import LassoCV, LogisticRegressionCV
 from sklearn.metrics import mean_squared_error, r2_score
 import pandas as pd
 
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
 
 
 # Shapiro-Wilk-Test returning Test-statistic and p-value
@@ -375,9 +378,15 @@ def bland_altman_plot(x, y, fig_x,title='',x_label='Mean of raters',y_label='Dif
 
 
 
-def boxplot_figure(x,data,independent,mode = 'choose',title='',x_label='',y_label='',x_ticklabels=[], color_points = 'g', show_p_values = True):
+def boxplot_figure(x,data,independent,mode = 'choose',title='',x_label='',y_label='',x_ticklabels=[], color_points = 'g', y_lim = None, show_p_values = True):
     boxprops = dict(color='black')
     medianprops = dict(color='black')
+    if y_lim is not None:
+        if (isinstance(y_lim, (list, tuple, np.ndarray)) and len(y_lim) == 2):
+            y_low, y_high = y_lim
+            plt.ylim(y_low, y_high)
+        else:
+            raise ValueError("y_lim must be a list or tuple of two elements")
     plt.boxplot(data,widths = 0.6,boxprops=boxprops,medianprops=medianprops)
     for i in np.arange(len(data)):
         y = data[i]
@@ -800,14 +809,14 @@ def ROC_fig(true_base,pred_value,positive_label,nsamples=1000,label2='',x=plt.gc
     x.set_title(title,fontsize=22)
     plt.legend(loc='lower right', ncol=1,fontsize=18)
     plt.tick_params(labelsize=18)
-    # print("Spez")
-    # print(np.sort(uuu[-3])[np.min(np.where(np.sort(uuu[-1]) >= 0.70)[0])])
-    # print("Sens")
-    # print(np.flip(np.sort(uuu[-3]))[np.min(np.where(np.sort(uuu[-2]) >= 0.70)[0])])
-    # print("NPV")
-    # print((np.sum((true_base != positive_label)))/(np.sum((true_base != positive_label)) + np.sum((true_base == positive_label) & (pred_value < np.sort(uuu[-3])[np.min(np.where(np.sort(uuu[-1]) >= 0.70)[0])]))))
-    # print("PPV")
-    # print((np.sum((true_base == positive_label)))/(np.sum((true_base == positive_label)) + np.sum((true_base != positive_label) & (pred_value > np.sort(uuu[-3])[np.min(np.where(np.sort(uuu[-1]) >= 0.70)[0])]))))
+    print("Spez")
+    print(np.sort(uuu[-3])[np.min(np.where(np.sort(uuu[-1]) >= 0.75)[0])])
+    print("Sens")
+    print(np.flip(np.sort(uuu[-3]))[np.min(np.where(np.sort(uuu[-2]) >= 0.75)[0])])
+    print("NPV")
+    print((np.sum((true_base != positive_label)))/(np.sum((true_base != positive_label)) + np.sum((true_base == positive_label) & (pred_value < np.sort(uuu[-3])[np.min(np.where(np.sort(uuu[-1]) >= 0.75)[0])]))))
+    print("PPV")
+    print((np.sum((true_base == positive_label)))/(np.sum((true_base == positive_label)) + np.sum((true_base != positive_label) & (pred_value > np.sort(uuu[-3])[np.min(np.where(np.sort(uuu[-1]) >= 0.75)[0])]))))
 
 def multivariate_linear_lasso(data,target,columns=[],target_name='target',N_of_decimals = 2,quiet = False):
     data = np.array(data).transpose()
@@ -1683,6 +1692,214 @@ def functional_corr_test(x,lf1,lf2,sampler,nnum,Np_of_decimals = 3):
             T_coll = np.append(T_coll,functional_corr_test_stat(x,inf_lst1,inf_lst2,sampler)[0])
         count += 1
     return [T_org, report_p_value(np.sum(T_coll > T_org)/count,Np_of_decimals)]
+
+
+
+
+def report_rr(res, term, N_of_decimals=3, Np_of_decimals=3):
+    """Helper: exponentiate coefficient -> rate ratio + CI + p."""
+    b = res.params[term]
+    se = res.bse[term]
+    rr = float(np.exp(b))
+    ci_low = float(np.exp(b - 1.96 * se))
+    ci_high = float(np.exp(b + 1.96 * se))
+    p = float(res.pvalues[term])
+    out = {
+        "RR": round(rr, N_of_decimals),
+        "CI_low": round(ci_low, N_of_decimals),
+        "CI_high": round(ci_high, N_of_decimals),
+        "p": p,
+    }
+    return out
+
+
+def poisson_negbin_rate_change(
+    df: pd.DataFrame,
+    id_col: str,
+    time_col: str,
+    count_col: str,
+    timepoints: list,
+    time_as: str = "categorical",    # "categorical" or "trend"
+    exposure_col: str | None = None,
+    model: str = "poisson",          # "poisson" or "negbin"
+    fixed_effects: bool = False,     # True = add CTS fixed effects via C(id_col)
+    cluster_se: bool = True,         # cluster-robust SE on CTS
+    N_of_decimals: int = 3,
+    Np_of_decimals: int = 3,
+    quiet: bool = False,
+):
+    """
+    Compares counts across timepoints for the SAME units (CTS).
+
+    Parameters
+    ----------
+    timepoints : list
+        Ordered list of timepoint labels present in *time_col*.
+        The **first** element is the reference.  Must contain >= 2 elements.
+    time_as : str, default "categorical"
+        - "categorical": dummy-coded timepoints (Treatment contrast, ref = first).
+          Returns one Rate Ratio per non-reference timepoint vs. reference.
+        - "trend": maps timepoints to 0, 1, 2, ... (ordinal) and fits a single
+          linear predictor.  Returns one Rate Ratio per time-unit increase.
+
+    Returns
+    -------
+    (result_dict, fit)
+        - categorical: result_dict is {timepoint_label: {"RR":…, "CI_low":…, "CI_high":…, "p":…}, …}
+        - trend:       result_dict is {"RR":…, "CI_low":…, "CI_high":…, "p":…}
+        Both include metadata keys "model", "fixed_effects", "cluster_se".
+        fit is the statsmodels result object.
+
+    Notes
+    -----
+    - exposure_col (e.g. observation time, population-at-risk) enters as log-offset (Poisson)
+      or multiplicative exposure (NegBin).
+    - fixed_effects=True creates dummies for each unit (can be heavy for >10 k units).
+    - cluster_se=True gives cluster-robust SE against within-unit correlation.
+    - model="negbin" uses NegativeBinomial (NB2) and estimates the overdispersion parameter alpha.
+    """
+
+    if len(timepoints) < 2:
+        raise ValueError("timepoints must contain at least 2 elements.")
+
+    if time_as not in ("categorical", "trend"):
+        raise ValueError("time_as must be 'categorical' or 'trend'.")
+
+    # --- cast timepoints to match column dtype --------------------------------
+    col_dtype = df[time_col].dtype
+    try:
+        timepoints = [col_dtype.type(tp) for tp in timepoints]
+    except (ValueError, TypeError):
+        pass  # keep original types; isin will do best-effort matching
+
+    # --- filter & copy -------------------------------------------------------
+    keep_cols = [id_col, time_col, count_col] + ([exposure_col] if exposure_col else [])
+    d = df.loc[df[time_col].isin(timepoints), keep_cols].copy()
+    if d.empty:
+        raise ValueError("No rows found for the given timepoints. Check timepoints and time_col.")
+
+    # --- exposure / offset ----------------------------------------------------
+    if exposure_col is not None:
+        if (d[exposure_col] <= 0).any():
+            raise ValueError("exposure_col must be > 0 everywhere (needed for log-offset).")
+        d["_offset"] = np.log(d[exposure_col].astype(float))
+    else:
+        d["_offset"] = 0.0
+
+    # --- build time predictor -------------------------------------------------
+    ref = timepoints[0]
+
+    if time_as == "categorical":
+        # convert to string for safe Treatment() reference handling
+        str_timepoints = [str(tp) for tp in timepoints]
+        d["_time_cat"] = d[time_col].astype(str)
+        d["_time_cat"] = pd.Categorical(d["_time_cat"], categories=str_timepoints, ordered=True)
+        str_ref = str(ref)
+        time_term = f"C(_time_cat, Treatment(reference='{str_ref}'))"
+    else:  # trend
+        tp_map = {tp: i for i, tp in enumerate(timepoints)}
+        d["_time_num"] = d[time_col].map(tp_map).astype(float)
+        time_term = "_time_num"
+
+    # --- formula --------------------------------------------------------------
+    if fixed_effects:
+        formula = f"{count_col} ~ {time_term} + C({id_col})"
+    else:
+        formula = f"{count_col} ~ {time_term}"
+
+    # --- fit model ------------------------------------------------------------
+    fit = _fit_count_model(
+        formula=formula, data=d, model=model,
+        offset=d["_offset"], id_col=id_col, cluster_se=cluster_se,
+    )
+
+    # --- extract RR(s) --------------------------------------------------------
+    model_label = "Negative Binomial (NB2)" if model.lower() in ("negbin", "negativebinomial", "nb") else "Poisson"
+
+    if time_as == "categorical":
+        # find all time-dummy terms in the fitted parameters
+        time_terms = [t for t in fit.params.index if "_time_cat" in t and "[T." in t]
+        rr_dict = {}
+        if not quiet:
+            print(f"=== {model_label} rate change (categorical, ref = {ref}) ===")
+        for term in time_terms:
+            # extract the timepoint label from e.g. "C(_time_cat, Treatment(...))[T.2021]"
+            label = term.split("[T.")[-1].rstrip("]")
+            rr = report_rr(fit, term, N_of_decimals, Np_of_decimals)
+            rr_dict[label] = rr
+
+            if not quiet:
+                print(f"  {label} vs {ref}:  RR = {rr['RR']}  (95% CI {rr['CI_low']} – {rr['CI_high']}); {report_p_value(rr['p'], Np_of_decimals)}")
+
+        if not quiet:
+            if exposure_col:
+                print(f"Offset/Exposure: {exposure_col}")
+            print(f"Fixed effects: {fixed_effects}, Cluster SE: {cluster_se}")
+
+        # attach metadata to outer dict
+        rr_dict["_meta"] = {
+            "model": model_label.lower().replace(" ", "_").replace("(", "").replace(")", ""),
+            "fixed_effects": fixed_effects,
+            "cluster_se": cluster_se,
+            "reference": ref,
+        }
+        return rr_dict, fit
+
+    else:  # trend
+        term = "_time_num"
+        rr = report_rr(fit, term, N_of_decimals, Np_of_decimals)
+
+        if not quiet:
+            print(f"=== {model_label} rate change (trend) ===")
+            print(f"  RR per time-unit = {rr['RR']}  (95% CI {rr['CI_low']} – {rr['CI_high']}); {report_p_value(rr['p'], Np_of_decimals)}")
+            print(f"  Time-units: {[str(tp) for tp in timepoints]} -> {list(range(len(timepoints)))}")
+            if exposure_col:
+                print(f"  Offset/Exposure: {exposure_col}")
+            print(f"  Fixed effects: {fixed_effects}, Cluster SE: {cluster_se}")
+
+        rr["model"] = model_label.lower().replace(" ", "_").replace("(", "").replace(")", "")
+        rr["fixed_effects"] = fixed_effects
+        rr["cluster_se"] = cluster_se
+        return rr, fit
+
+
+def _fit_count_model(formula, data, model, offset, id_col, cluster_se):
+    """Internal helper: fit Poisson or NegBin GLM/discrete model."""
+
+    if model.lower() == "poisson":
+        fam = sm.families.Poisson()
+        if cluster_se:
+            fit = smf.glm(formula=formula, data=data, family=fam, offset=offset).fit(
+                cov_type="cluster", cov_kwds={"groups": data[id_col]}
+            )
+        else:
+            fit = smf.glm(formula=formula, data=data, family=fam, offset=offset).fit()
+        return fit
+
+    elif model.lower() in ("negbin", "negativebinomial", "nb"):
+        exposure = np.exp(offset.values)
+        if cluster_se:
+            fit = smf.negativebinomial(formula=formula, data=data, exposure=exposure).fit(
+                cov_type="cluster", cov_kwds={"groups": data[id_col]}, disp=0
+            )
+        else:
+            fit = smf.negativebinomial(formula=formula, data=data, exposure=exposure).fit(disp=0)
+        return fit
+
+    else:
+        raise ValueError("model must be 'poisson' or 'negbin'.")
+
+
+def quick_overdispersion_check_poisson(fit):
+    """
+    Simple diagnostic: Pearson chi2 / df_resid.
+    >>1 suggests overdispersion -> consider negbin or robust SE.
+    """
+    try:
+        return float(fit.pearson_chi2 / fit.df_resid)
+    except Exception:
+        return np.nan
+
 
 
 

@@ -13,3 +13,5 @@ dist/
 *.plan
 .terraform/
 *.pem
+__pycache__
+statsmed.egg-info
