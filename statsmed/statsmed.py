@@ -478,10 +478,6 @@ def boxplot_figure(x,data,independent,mode = 'choose',title='',x_label='',y_labe
 
 
 
-
-def halloa():
-    print('halloeawd')
-
 #x,y,independent,alternative='two-sided', N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet = False
 '''
 Return:
@@ -1822,16 +1818,36 @@ def poisson_negbin_rate_change(
         time_term = "_time_num"
 
     # --- formula --------------------------------------------------------------
+    dep_var = f"Q('{count_col}')" if " " in count_col else count_col
     if fixed_effects:
-        formula = f"{count_col} ~ {time_term} + C({id_col})"
+        formula = f"{dep_var} ~ {time_term} + C({id_col})"
     else:
-        formula = f"{count_col} ~ {time_term}"
+        formula = f"{dep_var} ~ {time_term}"
 
-    # --- fit model ------------------------------------------------------------
+    # --- fit full model -------------------------------------------------------
     fit = _fit_count_model(
         formula=formula, data=d, model=model,
         offset=d["_offset"], id_col=id_col, cluster_se=cluster_se,
     )
+
+    # --- fit null model (no time effect) for omnibus LRT ----------------------
+    if fixed_effects:
+        formula_null = f"{dep_var} ~ C({id_col})"
+    else:
+        formula_null = f"{dep_var} ~ 1"
+
+    fit_null = _fit_count_model(
+        formula=formula_null, data=d, model=model,
+        offset=d["_offset"], id_col=id_col, cluster_se=cluster_se,
+    )
+
+    # Likelihood-ratio test: -2 * (ll_null - ll_full) ~ chi2(df)
+    if time_as == "categorical":
+        lrt_df = len(timepoints) - 1
+    else:
+        lrt_df = 1
+    lrt_stat = -2 * (fit_null.llf - fit.llf)
+    lrt_p = float(scipy.stats.chi2.sf(lrt_stat, lrt_df))
 
     # --- extract RR(s) --------------------------------------------------------
     model_label = "Negative Binomial (NB2)" if model.lower() in ("negbin", "negativebinomial", "nb") else "Poisson"
@@ -1842,6 +1858,7 @@ def poisson_negbin_rate_change(
         rr_dict = {}
         if not quiet:
             print(f"=== {model_label} rate change (categorical, ref = {ref}) ===")
+            print(f"  Omnibus LRT: chi2 = {lrt_stat:.2f}, df = {lrt_df}, {report_p_value(lrt_p, Np_of_decimals)}")
         for term in time_terms:
             # extract the timepoint label from e.g. "C(_time_cat, Treatment(...))[T.2021]"
             label = term.split("[T.")[-1].rstrip("]")
@@ -1862,6 +1879,9 @@ def poisson_negbin_rate_change(
             "fixed_effects": fixed_effects,
             "cluster_se": cluster_se,
             "reference": ref,
+            "omnibus_lrt_chi2": round(lrt_stat, N_of_decimals),
+            "omnibus_lrt_df": lrt_df,
+            "omnibus_lrt_p": lrt_p,
         }
         return rr_dict, fit
 
@@ -1871,6 +1891,7 @@ def poisson_negbin_rate_change(
 
         if not quiet:
             print(f"=== {model_label} rate change (trend) ===")
+            print(f"  Omnibus LRT: chi2 = {lrt_stat:.2f}, df = {lrt_df}, {report_p_value(lrt_p, Np_of_decimals)}")
             print(f"  RR per time-unit = {rr['RR']}  (95% CI {rr['CI_low']} – {rr['CI_high']}); {report_p_value(rr['p'], Np_of_decimals)}")
             print(f"  Time-units: {[str(tp) for tp in timepoints]} -> {list(range(len(timepoints)))}")
             if exposure_col:
@@ -1880,6 +1901,9 @@ def poisson_negbin_rate_change(
         rr["model"] = model_label.lower().replace(" ", "_").replace("(", "").replace(")", "")
         rr["fixed_effects"] = fixed_effects
         rr["cluster_se"] = cluster_se
+        rr["omnibus_lrt_chi2"] = round(lrt_stat, N_of_decimals)
+        rr["omnibus_lrt_df"] = lrt_df
+        rr["omnibus_lrt_p"] = lrt_p
         return rr, fit
 
 
