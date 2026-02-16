@@ -1,0 +1,26 @@
+[project]
+name = "statsmed"
+version = "0.0.21"
+license = "Apache-2.0"
+authors = [{name = "Martin Segeroth"}]
+classifiers = ["Intended Audience :: Science/Research", "Programming Language :: Python", "Topic :: Scientific/Engineering", "Operating System :: Unix", "Operating System :: MacOS"]
+description = "Statistics with Figures for medical data analysis"
+requires-python = ">=3.10"
+dependencies = [
+    "casadi>=3.6.2",
+    "matplotlib>=3.6.2",
+    "numpy",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.10.1",
+    "statsmodels>=0.12.2",
+]
+
+[project.optional-dependencies]
+web = ["flask", "fpdf2", "pandas", "openpyxl"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["statsmed*"]
