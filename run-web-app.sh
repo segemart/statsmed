@@ -1,0 +1,1 @@
+flask --app web.app:create_app run --port=5000 --debug

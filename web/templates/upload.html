@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis - Statsmed{% endblock %}
+
+{% block style %}
+.table-wrap { max-height: 360px; overflow-y: auto; border: 1px solid #a5d6a7; border-radius: .25rem; }
+.table-wrap table { margin: 0; }
+.config { display: none; }
+.config.active { display: block; }
+{% endblock %}
+
+{% block nav_right %}
+<span class="navbar-text">
+  <span class="badge badge-file">{{ filename }}</span>
+  <form method="POST" action="/clear" class="d-inline ml-2">
+    <input type="hidden" name="filepath" value="{{ filepath }}">
+    <button type="submit" class="btn btn-sm btn-outline-danger">Remove file</button>
+  </form>
+</span>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-3">
+  <div class="card-header">Data Preview</div>
+  <div class="table-wrap">
+    {{ preview|safe }}
+  </div>
+</div>
+
+<p class="text-muted small mb-3" style="font-style:italic;">Uploaded data and analysis results are temporary. They will be lost when you close the browser, remove the file, or after 48 hours.</p>
+
+<div class="card mb-3">
+  <div class="card-header">Choose Test</div>
+  <div class="card-body">
+    <form method="POST" action="/run">
+      <input type="hidden" name="filepath" value="{{ filepath }}">
+      <input type="hidden" name="filename" value="{{ filename }}">
+      <div class="form-group">
+        <select name="test" id="test-select" class="form-control" onchange="showConfig()">
+          <option value="">-- Select a test --</option>
+          {% for key, t in tests.items() %}
+          <option value="{{ key }}" {% if selected_test == key %}selected{% endif %}>{{ t.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% for key, t in tests.items() %}
+      <div class="config {% if selected_test == key %}active{% endif %}" id="cfg-{{ key }}">
+        <p class="text-muted">{{ t.description }}</p>
+        {% for inp in t.inputs %}
+          {% if inp.type == 'column' %}
+          <div class="form-group">
+            <label>{{ inp.label }}</label>
+            <select name="{{ inp.name }}" class="form-control col-select" data-convert-wrap="wrap_cvt_{{ key }}_{{ inp.name }}" {% if selected_test != key %}disabled{% endif %} onchange="checkColType(this)">
+              {% for col in columns %}
+              <option value="{{ col }}" {% if selected_params and selected_params.get(inp.name) == col %}selected{% endif %}>{{ col }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-check mt-1 convert-check" id="wrap_cvt_{{ key }}_{{ inp.name }}" style="display:none;">
+              <input type="checkbox" class="form-check-input" name="convert_{{ inp.name }}" id="cvt_{{ key }}_{{ inp.name }}" disabled>
+              <label class="form-check-label text-muted small" for="cvt_{{ key }}_{{ inp.name }}">Convert to categorical (non-numeric column)</label>
+            </div>
+          </div>
+          {% elif inp.type == 'boolean' %}
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input" name="{{ inp.name }}" id="{{ key }}-{{ inp.name }}"
+              {% if selected_params %}{% if selected_params.get(inp.name) %}checked{% endif %}{% elif inp.get('default', False) %}checked{% endif %}
+              {% if selected_test != key %}disabled{% endif %}>
+            <label class="form-check-label" for="{{ key }}-{{ inp.name }}">{{ inp.label }}</label>
+          </div>
+          {% elif inp.type == 'number' %}
+          <div class="form-group">
+            <label>{{ inp.label }}</label>
+            <input type="number" class="form-control" name="{{ inp.name }}" step="any"
+              value="{{ selected_params.get(inp.name, inp.get('default', '')) if selected_params else inp.get('default', '') }}"
+              {% if selected_test != key %}disabled{% endif %}>
+          </div>
+          {% elif inp.type == 'multi_column' %}
+          <div class="form-group">
+            <label>{{ inp.label }}</label>
+            <select name="{{ inp.name }}" class="form-control multi-col-select" data-convert-container="mc_cvt_{{ key }}_{{ inp.name }}" multiple size="6" {% if selected_test != key %}disabled{% endif %} onchange="updateMultiColConvert(this)">
+              {% for col in columns %}
+              <option value="{{ col }}" {% if selected_params and col in selected_params.get(inp.name, []) %}selected{% endif %}>{{ col }}</option>
+              {% endfor %}
+            </select>
+            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple columns</small>
+            <div id="mc_cvt_{{ key }}_{{ inp.name }}" class="mt-1 multi-col-convert-container"></div>
+          </div>
+          {% elif inp.type == 'select' %}
+          <div class="form-group">
+            <label>{{ inp.label }}</label>
+            <select name="{{ inp.name }}" class="form-control" {% if selected_test != key %}disabled{% endif %}>
+              {% for opt in inp.options %}
+              <option value="{{ opt.value }}" {% if selected_params and selected_params.get(inp.name) == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+        {% endfor %}
+        <div class="mapping-mode-group mt-2 mb-2 p-2" style="display:none; background:var(--green-bg); border-radius:.25rem;">
+          <label class="text-muted small d-block mb-1"><strong>Categorical mapping mode</strong> (multiple columns selected for conversion):</label>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="convert_mode" id="mode_shared_{{ key }}" value="shared" checked>
+            <label class="form-check-label small" for="mode_shared_{{ key }}">Shared mapping (same dictionary for all columns)</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="convert_mode" id="mode_indep_{{ key }}" value="independent">
+            <label class="form-check-label small" for="mode_indep_{{ key }}">Independent mapping (separate dictionary per column)</label>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Run</button>
+      </div>
+      {% endfor %}
+    </form>
+  </div>
+</div>
+
+{% if results_history %}
+<div class="mb-3 text-right">
+  <form method="POST" action="/download" class="d-inline">
+    <input type="hidden" name="filepath" value="{{ filepath }}">
+    <input type="hidden" name="filename" value="{{ filename }}">
+    <button type="submit" class="btn btn-outline-primary btn-sm">Download Report (PDF)</button>
+  </form>
+</div>
+{% endif %}
+
+{% for r in results_history %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>{{ r.label }} <small class="text-muted ml-2">{{ r.timestamp }}</small></span>
+    <form method="POST" action="/delete_result" class="mb-0">
+      <input type="hidden" name="filepath" value="{{ filepath }}">
+      <input type="hidden" name="filename" value="{{ filename }}">
+      <input type="hidden" name="idx" value="{{ loop.index0 }}">
+      <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Remove">&times;</button>
+    </form>
+  </div>
+  <div class="card-body">
+    <p class="text-muted mb-2">{{ r.description }}</p>
+    <pre class="mb-0" style="white-space:pre-wrap; background:var(--green-bg); padding:12px; border-radius:.25rem;">{{ r.text }}</pre>
+    {% if r.figure %}
+    <div class="text-center mt-3">
+      <img src="data:image/png;base64,{{ r.figure }}" alt="Figure" class="img-fluid">
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+var colTypes = {{ col_types|tojson }};
+
+function checkColType(selectEl) {
+  var wrapId = selectEl.getAttribute('data-convert-wrap');
+  var wrap = document.getElementById(wrapId);
+  if (!wrap) return;
+  var col = selectEl.value;
+  if (colTypes[col] === 'string') {
+    wrap.style.display = 'block';
+    wrap.querySelector('input[type=checkbox]').checked = true;
+  } else {
+    wrap.style.display = 'none';
+    wrap.querySelector('input[type=checkbox]').checked = false;
+  }
+  updateMappingMode();
+}
+
+function updateMultiColConvert(selectEl) {
+  var containerId = selectEl.getAttribute('data-convert-container');
+  var container = document.getElementById(containerId);
+  if (!container) return;
+  var selected = Array.from(selectEl.selectedOptions).map(o => o.value);
+  var stringCols = selected.filter(c => colTypes[c] === 'string');
+  // Remember which were already checked
+  var wasChecked = {};
+  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    wasChecked[cb.value] = cb.checked;
+  });
+  container.innerHTML = '';
+  stringCols.forEach(function(col) {
+    var div = document.createElement('div');
+    div.className = 'form-check convert-check';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'form-check-input';
+    cb.name = 'convert_multi_col';
+    cb.value = col;
+    cb.id = 'mc_cvt_' + containerId + '_' + col;
+    cb.checked = (col in wasChecked) ? wasChecked[col] : true;
+    cb.onchange = updateMappingMode;
+    var lbl = document.createElement('label');
+    lbl.className = 'form-check-label text-muted small';
+    lbl.htmlFor = cb.id;
+    lbl.textContent = 'Convert "' + col + '" to categorical';
+    div.appendChild(cb);
+    div.appendChild(lbl);
+    container.appendChild(div);
+  });
+  updateMappingMode();
+}
+
+function updateMappingMode() {
+  var active = document.querySelector('.config.active');
+  if (!active) return;
+  // Count all checked convert checkboxes (single-column + multi-column)
+  var checked = active.querySelectorAll('.convert-check input[type=checkbox]:checked');
+  var group = active.querySelector('.mapping-mode-group');
+  if (group) {
+    group.style.display = checked.length >= 2 ? 'block' : 'none';
+  }
+}
+
+function showConfig() {
+  document.querySelectorAll('.config').forEach(el => {
+    el.classList.remove('active');
+    el.querySelectorAll('select,input:not([type=hidden])').forEach(i => i.disabled = true);
+  });
+  var v = document.getElementById('test-select').value;
+  if (v) {
+    var cfg = document.getElementById('cfg-' + v);
+    cfg.classList.add('active');
+    cfg.querySelectorAll('select,input:not([type=hidden])').forEach(i => i.disabled = false);
+    // Trigger column-type check on all visible single-column selects
+    cfg.querySelectorAll('select.col-select').forEach(s => checkColType(s));
+    // Trigger multi-column convert update
+    cfg.querySelectorAll('select.multi-col-select').forEach(s => updateMultiColConvert(s));
+    // Attach change listener to single-column convert checkboxes
+    cfg.querySelectorAll('.convert-check input[type=checkbox]').forEach(cb => {
+      cb.onchange = updateMappingMode;
+    });
+    updateMappingMode();
+  }
+}
+{% if selected_test %}showConfig();{% endif %}
+</script>
+{% endblock %}

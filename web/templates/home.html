@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6 text-center">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h4 class="card-title mb-3">Upload Your Data</h4>
+        <p class="text-muted">Upload a CSV or Excel file to get started with statistical analysis.</p>
+        <form method="POST" action="/upload" enctype="multipart/form-data" class="d-flex flex-column align-items-center">
+          <div class="form-group d-flex justify-content-center">
+            <input type="file" class="form-control-file" name="file" accept=".csv,.xlsx,.xls" required style="max-width:210px;">
+          </div>
+          <button type="submit" class="btn btn-primary mt-3">Upload</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
