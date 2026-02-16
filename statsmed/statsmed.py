@@ -27,49 +27,50 @@ import statsmodels.formula.api as smf
 
 
 
-# Shapiro-Wilk-Test returning Test-statistic and p-value
 def shapiro_wilk_test(x):
+    """Shapiro-Wilk-Test returning Test-statistic and p-value."""
     [t,z] = scipy.stats.shapiro(x)
     return ([t,z])
 
-# Kolmogorow-Smirnow-Test returning Test-statistic and p-value
 def kolmogorow_smirnow_test(x):
+    """Kolmogorov-Smirnov-Test returning Test-statistic and p-value."""
     [t,z] = scipy.stats.kstest((x - np.mean(x))/np.std(x,ddof = 1),scipy.stats.norm.cdf)
     return ([t,z])
 
-# compare the distribution functions of two empirical distributions
 def komogorow_smirnow_two_emp_dist(x,y):
+    """Compare the distribution functions of two empirical distributions."""
     [t,z] = scipy.stats.ks_2samp(x,y)
     return ([t,z])
 
-'''test of normality using the: 1. Shapiro-Wilk-Test and 2. Kolmogorow-Smirnow-Test
-Kolmogorow-Smirnow-Test requires normalization but not Shapiro-Wilk-Test
-Input: array of test-data - please exclude NaN or None Values.
-Output: 0 if both tests do not indicate a significant difference from a normal distribution and 1 if at least ones does,
-        0 if Shapiro-Wilk-Test does not indicate a significant difference from a normal distribution and 1 if does,
-        0 if Kolmogorow-Smirnow-Test does not indicate a significant difference from a normal distribution and 1 if does,
-        Test-statistic of Shapiro-Wilk-Test,
-        p-value of Shapiro-Wilk-Test,
-        test-statistic of Kolmogorow-Smirnow-Test,
-        p-value of Kolmogorow-Smirnow-Test
-'''
 def stdnorm_test(x,Np_of_decimals = 3, quiet = False):
+    """Test of normality using the: 1. Shapiro-Wilk-Test and 2. Kolmogorov-Smirnov-Test.
+
+    Kolmogorov-Smirnov-Test requires normalization but not Shapiro-Wilk-Test.
+    Input: array of test-data - please exclude NaN or None Values.
+    Output: 0 if both tests do not indicate a significant difference from a normal distribution and 1 if at least ones does,
+            0 if Shapiro-Wilk-Test does not indicate a significant difference from a normal distribution and 1 if does,
+            0 if Kolmogorov-Smirnov-Test does not indicate a significant difference from a normal distribution and 1 if does,
+            Test-statistic of Shapiro-Wilk-Test,
+            p-value of Shapiro-Wilk-Test,
+            test-statistic of Kolmogorov-Smirnov-Test,
+            p-value of Kolmogorov-Smirnov-Test
+    """
     SWn = 0
     [t1,z1] = shapiro_wilk_test(x)
     if z1 < 0.05:
         SWn = 1
-        if not quiet: print("Shapiro-Wilk: No normal dsitribution (p-value = " + report_p_value(z1,Np_of_decimals) + ")")
+        if not quiet: print("Shapiro-Wilk: No normal distribution (p-value = " + report_p_value(z1,Np_of_decimals) + ")")
     else:
         SWn = 0
-        if not quiet: print("Shapiro-Wilk: Normal dsitribution (p-value = " + report_p_value(z1,Np_of_decimals) + " \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
+        if not quiet: print("Shapiro-Wilk: Normal distribution (p-value = " + report_p_value(z1,Np_of_decimals) + " \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
     KSn = 0
     [t2,z2] = kolmogorow_smirnow_test(x)
     if z2 < 0.05:
         KSn = 1
-        if not quiet: print("Kolmogorow-Smirnow: No normal dsitribution (p-value = " + report_p_value(z2,Np_of_decimals) + ")")
+        if not quiet: print("Kolmogorow-Smirnow: No normal distribution (p-value = " + report_p_value(z2,Np_of_decimals) + ")")
     else:
         KSn = 0
-        if not quiet: print("Kolmogorow-Smirnow: Normal dsitribution (p-value = " + report_p_value(z2,Np_of_decimals) + " \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
+        if not quiet: print("Kolmogorow-Smirnow: Normal distribution (p-value = " + report_p_value(z2,Np_of_decimals) + " \n \t - p-value >= 0.05 indicates no significant difference from normal distribution)")
     Fn = 0
     if (z1 < 0.05) or (z2 < 0.05):
         Fn = 1
@@ -79,17 +80,18 @@ def stdnorm_test(x,Np_of_decimals = 3, quiet = False):
         if not quiet: print("Both tests do not indicate a significant difference from a normal distribution")
     return [Fn,SWn,KSn,t1,z1,t2,z2]
 
-''' Descriptive statistic of data depending on their dirstribution:
-Input: array of test-data - please exclude NaN or None Values; Number of decimals; mode (what to return)
-Output: depends on mode if mode = all the function prints mean with standard deviation and confidence interval
-                                  as well as median with inter-quartile range and pseudomedian with confidence interval of the signed-rank distribution
-                        if mode = normal distribution - only the mean with standard deviation and confidence interval is given
-                        if mode = no normal distribution - median with inter-quartile range and pseudomedian with confidence interval of the signed-rank distribution is returned
-                        if something else is given the respective output depends on whether the data is normal distributed due to stdnorm_test
-        the output is rounded to the number of given decimals
-        it also returns a numpy array containing all values depending on mode
-'''
 def get_desc(x,N_of_decimals = 2,mode = 'choose', quiet = False):
+    """Descriptive statistic of data depending on their distribution.
+
+    Input: array of test-data - please exclude NaN or None Values; Number of decimals; mode (what to return).
+    Output: depends on mode if mode = all the function prints mean with standard deviation and confidence interval
+                                      as well as median with inter-quartile range and pseudomedian with confidence interval of the signed-rank distribution
+                            if mode = normal distribution - only the mean with standard deviation and confidence interval is given
+                            if mode = no normal distribution - median with inter-quartile range and pseudomedian with confidence interval of the signed-rank distribution is returned
+                            if something else is given the respective output depends on whether the data is normal distributed due to stdnorm_test
+            the output is rounded to the number of given decimals
+            it also returns a numpy array containing all values depending on mode
+    """
     distr = stdnorm_test(x,quiet = True)
     mean_std = np.array([np.mean(x),np.std(x), np.nan])
     normald = get_CI_normd(x)
@@ -140,17 +142,18 @@ def report_p_value(p,Np_of_decimals = 3):
         return f"p < {np.round(np.power(1/10,Np_of_decimals),Np_of_decimals)}"
 
 
-''' Correlation of two groups:
-Input: two arrays of test-data (x and y) - please exclude NaN or None Values; Number of decimals; mode (what to return); Number of decimals for significant p values
-Output: depends on mode if mode = all the function prints Spearman correlation and Pearson correlation
-                        if mode = normal distribution - only the Pearson correlation is given
-                        if mode = no normal distribution - Spearman correlation is returned
-                        if something else is given the respective output depends on whether the data is normal distributed (Pearson correlation) or not normal distributed (Spearman correlation) due to stdnorm_test
-        the output for each line of the output: 0 (Pearson) or 1 (Spearman); r-value rounded to number of given decimals; p-value rounded to number of decimals for significant p values;
-                        95%-confidence interval of r-value rounded to number of given decimals
-        the given lines depend on the mode
-'''
 def corr_two_gr(x,y,N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet = False):
+    """Correlation of two groups.
+
+    Input: two arrays of test-data (x and y) - please exclude NaN or None Values; Number of decimals; mode (what to return); Number of decimals for significant p values.
+    Output: depends on mode if mode = all the function prints Spearman correlation and Pearson correlation
+                            if mode = normal distribution - only the Pearson correlation is given
+                            if mode = no normal distribution - Spearman correlation is returned
+                            if something else is given the respective output depends on whether the data is normal distributed (Pearson correlation) or not normal distributed (Spearman correlation) due to stdnorm_test
+            the output for each line of the output: 0 (Pearson) or 1 (Spearman); r-value rounded to number of given decimals; p-value rounded to number of decimals for significant p values;
+                            95%-confidence interval of r-value rounded to number of given decimals
+            the given lines depend on the mode
+    """
     if not quiet: print('Testing normal distribution of first variable:')
     x_distr = stdnorm_test(x,quiet = quiet)
     if not quiet: print('Testing normal distribution of second variable:')
@@ -196,10 +199,11 @@ def corr_two_gr(x,y,N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet 
 def func_fit(x,a,b):
     return a*x+b
 
-''' Makes a scatter plot of the x and y data with a linear regression for visualization and gives the correlations (Spearman and Pearson):
-Input: two arrays of test-data (x and y) - please exclude NaN or None Values; Figure; Title; Label of x-axis; Label of y-axis; color; Number of decimals; mode (what to return); Number of decimals for significant p values
-'''
 def corr_scatter_figure(x,y,fig_x,title='',x_label='',y_label='', color = 'green',N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3,quiet = False):
+    """Makes a scatter plot of the x and y data with a linear regression for visualization and gives the correlations (Spearman and Pearson).
+
+    Input: two arrays of test-data (x and y) - please exclude NaN or None Values; Figure; Title; Label of x-axis; Label of y-axis; color; Number of decimals; mode (what to return); Number of decimals for significant p values.
+    """
     plt.scatter(x,y, color = color,s=10, alpha=0.2)
     popt, pcov = scipy.optimize.curve_fit(func_fit, x, y)
     plt.plot(x,func_fit(x,*popt), color = color,linewidth=3)
@@ -252,16 +256,17 @@ def wilcoxon_dep(x,y,alternative='two-sided'):
     [t,p] = scipy.stats.wilcoxon(x, y,alternative=alternative)
     return [t,p]
 
-''' Comparison of two groups with continuous variables:
-Input: two arrays of test-data (x and y) - please exclude NaN or None Values; independet = True or False is x and y are independent (True) or dependent/related (False); alternative: {two-sided, less, greater}; Number of decimals; mode (what to return); Number of decimals for significant p values
-Output: depends on mode if mode = all; the function prints results of T-test for the means of two independent and dependent/related samples, Mann-Whitney U-Test of two independent samples and Wilcoxon signed-rank test of two dependent/related samples
-                        if mode = normal distribution - dependent on independent value the function prints results of T-test for the means of two independent or dependent/related samples
-                        if mode = no normal distribution - dependent on independent value the function prints results of Mann-Whitney U-Test of two independent samples or Wilcoxon signed-rank test of two dependent/related samples
-                        if something else is given the respective output depends on whether the data is normal distributed or not normal distributed due to stdnorm_test
-        the output for each line of the output: t-value rounded to number of given decimals; p-value rounded to number of decimals for significant p values;
-        the given lines depend on the mode
-'''
 def comp_two_gr_continuous(x,y,independent,alternative='two-sided', N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet = False):
+    """Comparison of two groups with continuous variables.
+
+    Input: two arrays of test-data (x and y) - please exclude NaN or None Values; independent = True or False if x and y are independent (True) or dependent/related (False); alternative: {two-sided, less, greater}; Number of decimals; mode (what to return); Number of decimals for significant p values.
+    Output: depends on mode if mode = all; the function prints results of T-test for the means of two independent and dependent/related samples, Mann-Whitney U-Test of two independent samples and Wilcoxon signed-rank test of two dependent/related samples
+                            if mode = normal distribution - dependent on independent value the function prints results of T-test for the means of two independent or dependent/related samples
+                            if mode = no normal distribution - dependent on independent value the function prints results of Mann-Whitney U-Test of two independent samples or Wilcoxon signed-rank test of two dependent/related samples
+                            if something else is given the respective output depends on whether the data is normal distributed or not normal distributed due to stdnorm_test
+            the output for each line of the output: t-value rounded to number of given decimals; p-value rounded to number of decimals for significant p values;
+            the given lines depend on the mode
+    """
     if not quiet: print('Testing normal distribution of x-data:')
     x_distr = stdnorm_test(x,Np_of_decimals,quiet = quiet)
     if not quiet:
@@ -330,10 +335,11 @@ def comp_two_gr_continuous(x,y,independent,alternative='two-sided', N_of_decimal
                 return res
 
 
-''' Makes a Bland-Altman plot of the x and y data:
-Input: two arrays of test-data (x and y) - please exclude NaN or None Values; Figure; Title; Label of x-axis; Label of y-axis
-'''
 def bland_altman_plot(x, y, fig_x,title='',x_label='Mean of raters',y_label='Difference in seconds between raters'):
+    """Makes a Bland-Altman plot of the x and y data.
+
+    Input: two arrays of test-data (x and y) - please exclude NaN or None Values; Figure; Title; Label of x-axis; Label of y-axis.
+    """
     data1     = np.asarray(x)
     data2     = np.asarray(y)
     mean      = np.mean([x, y], axis=0)
@@ -358,7 +364,7 @@ def bland_altman_plot(x, y, fig_x,title='',x_label='Mean of raters',y_label='Dif
     # Standard error of the limits of agreement
     se_loas = np.sqrt(3 * var / n)
     # Endpoints of the range that contains 95% of the Student’s t distribution
-    t_interval = scipy.stats.t.interval(alpha=0.95, df=n - 1)
+    t_interval = scipy.stats.t.interval(confidence=0.95, df=n - 1)
     # Confidence intervals
     ci_bias = md + np.array(t_interval) * se_bias
     ci_upperloa = md + 1.96*sd + np.array(t_interval) * se_loas
@@ -478,38 +484,38 @@ def boxplot_figure(x,data,independent,mode = 'choose',title='',x_label='',y_labe
 
 
 
-#x,y,independent,alternative='two-sided', N_of_decimals = 2,mode = 'choose',Np_of_decimals = 3, quiet = False
-'''
-Return:
-0: Size of total population
-1: Number of positives
-2: Number of negatives
-3: Number of predicted positives
-4: Number of predicted negatives
-5: Number of true positives
-6: Number of true negatives
-7: Number of false positives
-8: Number of false negatives
-9: Prevalence
-10: Accuaracy
-11: Positive Predictive Value / Precision (PPV)
-12: Negative Predictive Value (NPV)
-13: False Omission Rate (FOR)
-14: False Discovery Rate (FDR)
-15: True Positive Rate / Sensitivity / Recall (TPR)
-16: True Negative Rate / Spezificity (TNR)
-17: False Positive Rate (FPR)
-18: False Negative Rate (FNR)
-19: Informedness / Youden's J statistic
-20: Prevalence threshold
-21: Balanced accuracy
-22: F1 score
-23: Positive likelihood ratio
-24: Negative likelihood ratio
-25: Diagnostics Odds Ratio (DOR)
-26: Jaccard Index
-'''
 def acc_sens(gt,x,N_of_decimals = 2,method = 'wilson',quiet = False):
+    """Classification accuracy and sensitivity analysis.
+
+    Return:
+    0: Size of total population
+    1: Number of positives
+    2: Number of negatives
+    3: Number of predicted positives
+    4: Number of predicted negatives
+    5: Number of true positives
+    6: Number of true negatives
+    7: Number of false positives
+    8: Number of false negatives
+    9: Prevalence
+    10: Accuracy
+    11: Positive Predictive Value / Precision (PPV)
+    12: Negative Predictive Value (NPV)
+    13: False Omission Rate (FOR)
+    14: False Discovery Rate (FDR)
+    15: True Positive Rate / Sensitivity / Recall (TPR)
+    16: True Negative Rate / Specificity (TNR)
+    17: False Positive Rate (FPR)
+    18: False Negative Rate (FNR)
+    19: Informedness / Youden's J statistic
+    20: Prevalence threshold
+    21: Balanced accuracy
+    22: F1 score
+    23: Positive likelihood ratio
+    24: Negative likelihood ratio
+    25: Diagnostics Odds Ratio (DOR)
+    26: Jaccard Index
+    """
     if np.sum(((gt != 1).astype(int) + (gt != 0).astype(int)) != 1) > 0:
         print('Ground truth is not indicated by ones and zeros')
     if np.sum(((x != 1).astype(int) + (x != 0).astype(int)) != 1) > 0:
@@ -1055,11 +1061,10 @@ cv = within_subject_coefficient_of_variation(u1,u2)'''
 
 #im prinzip non inferiority oder non superiority von y
 def non_inferiority_ttest(x,y, relad, alpha):
-    # x sind die daten auf denen relative abweichungen erlaubt sind
-    #relad -> vormals relative_difference
-    '''
+    """Non-inferiority t-test.
+
     H0 : y < x - delta; H1 y >= x - delta
-    '''
+    """
     delta = x * relad
     threshold = x - delta
     tstat, pval = scipy.stats.ttest_rel(threshold,y,alternative='less')
@@ -1069,10 +1074,10 @@ def non_inferiority_ttest(x,y, relad, alpha):
     return tstat, sig, pval
     
 def non_superiority_ttest(x,y, relad, alpha):
-    # x sind die daten auf denen relative abweichungen erlaubt sind
-    '''
+    """Non-superiority t-test.
+
     H0 : y > x + delta; H1 y <= y + delta
-    '''
+    """
     delta = x * relad
     threshold = x + delta
     tstat, pval = scipy.stats.ttest_rel(threshold,y,alternative='greater')
@@ -1082,11 +1087,10 @@ def non_superiority_ttest(x,y, relad, alpha):
     return tstat, sig, pval
 
 def non_inferiority_wilcoxon(x,y, relad, alpha):
-    # x sind die daten auf denen relative abweichungen erlaubt sind
-    #relad -> vormals relative_difference
-    '''
+    """Non-inferiority Wilcoxon test.
+
     H0 : y < x - delta; H1 y >= x - delta
-    '''
+    """
     delta = x * relad
     threshold = x - delta
     tstat, pval = scipy.stats.wilcoxon(threshold,y,alternative='less')
@@ -1096,10 +1100,10 @@ def non_inferiority_wilcoxon(x,y, relad, alpha):
     return tstat, sig, pval
 
 def non_superiority_wilcoxon(x,y, relad, alpha):
-    # x sind die daten auf denen relative abweichungen erlaubt sind
-    '''
+    """Non-superiority Wilcoxon test.
+
     H0 : y > x + delta; H1 y <= y + delta
-    '''
+    """
     delta = x * relad
     threshold = x + delta
     tstat, pval = scipy.stats.wilcoxon(threshold,y,alternative='greater')
@@ -1109,11 +1113,11 @@ def non_superiority_wilcoxon(x,y, relad, alpha):
     return tstat, sig, pval
 
 def non_superiority_wilcoxon_abs(x,y, relad, alpha):
-    # x sind die daten auf denen relative abweichungen erlaubt sind
-    '''
+    """Non-superiority Wilcoxon test (absolute).
+
     H0 : y > x + delta; H1 y <= y + delta
-    d.h. y-x > delta
-    '''
+    i.e. y-x > delta
+    """
     delta = x * relad
     tstat, pval = scipy.stats.wilcoxon(np.abs(delta),np.abs(y-x),alternative='greater')
     sig = 0

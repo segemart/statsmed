@@ -15,3 +15,5 @@ dist/
 *.pem
 __pycache__
 statsmed.egg-info
+.venv/
+web/tmp/

@@ -24,9 +24,14 @@ For some special use cases we also implemented a functional t-test, where you ca
 
 Statsmed works on Ubuntu, Mac, and Windows and on CPU and GPU.
 
-Please make sure you have a running version of Python (>= 3.8.8), pip and git.
+Please make sure you have a running version of Python (>= 3.10), [uv](https://docs.astral.sh/uv/) (recommended) or pip, and git.
 
-Install Statsmed
+Install Statsmed with uv:
+```
+uv add git+https://github.com/segemart/statsmed.git
+```
+
+Or with pip:
 ```
 pip install git+https://github.com/segemart/statsmed.git
 ```
@@ -47,11 +52,26 @@ Statsmed also allows you to generate figures quickly. See for example [Example 3
 
 ![ROC curves](examples/example7/ROCurve.png)
 
+### Web Application
+
+Statsmed includes a browser-based interface that lets you upload a CSV or Excel file, select statistical tests, and view results directly in the browser. Results can be downloaded as a PDF report.
+
+To run the web application locally:
+
+```
+git clone https://github.com/segemart/statsmed.git
+cd statsmed
+uv sync --extra web
+./run-web-app.sh
+```
+
+This starts the Flask development server at `http://localhost:5000`.
+
 ### Cite
 
 If you use Statsmed in your research, please cite:
 
-Segeroth, M. (2025). Statsmed: Statistics with Figures for medical data analysis (v0.0.18). GitHub. Available at [GitHub repository](https://github.com/segemart/statsmed).
+Segeroth, M. (2025). Statsmed: Statistics with Figures for medical data analysis (v0.0.21). GitHub. Available at [GitHub repository](https://github.com/segemart/statsmed).
 
 ```bibtex
 @software{Segeroth_Statsmed_2025,
