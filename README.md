@@ -71,7 +71,7 @@ This starts the Flask development server at `http://localhost:5000`.
 
 If you use Statsmed in your research, please cite:
 
-Segeroth, M., Indrakanti A. (2025). Statsmed: Statistics with Figures for medical data analysis (v0.0.21). GitHub. Available at [GitHub repository](https://github.com/segemart/statsmed).
+Segeroth, M., Indrakanti A. (2025). Statsmed: Statistics with Figures for medical data analysis (v1.0.1). GitHub. Available at [GitHub repository](https://github.com/segemart/statsmed).
 
 ```bibtex
 @software{Segeroth_Statsmed_2025,
