@@ -358,7 +358,7 @@ def bland_altman_plot(x, y, fig_x,title='',x_label='Mean of raters',y_label='Dif
     # Standard error of the limits of agreement
     se_loas = np.sqrt(3 * var / n)
     # Endpoints of the range that contains 95% of the Student’s t distribution
-    t_interval = scipy.stats.t.interval(alpha=0.95, df=n - 1)
+    t_interval = scipy.stats.t.interval(confidence=0.95, df=n - 1)
     # Confidence intervals
     ci_bias = md + np.array(t_interval) * se_bias
     ci_upperloa = md + 1.96*sd + np.array(t_interval) * se_loas
