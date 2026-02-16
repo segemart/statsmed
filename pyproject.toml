@@ -1,6 +1,6 @@
 [project]
 name = "statsmed"
-version = "0.0.21"
+version = "1.0.1"
 license = "Apache-2.0"
 authors = [{name = "Martin Segeroth"}]
 classifiers = ["Intended Audience :: Science/Research", "Programming Language :: Python", "Topic :: Scientific/Engineering", "Operating System :: Unix", "Operating System :: MacOS"]
