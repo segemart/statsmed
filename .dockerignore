@@ -1,0 +1,13 @@
+.git
+.gitignore
+*.pyc
+__pycache__
+.venv
+venv
+uv.lock
+examples
+*.ipynb
+.cursor
+*.egg-info
+README.md
+LICENSE

@@ -1,0 +1,15 @@
+# Run behind Caddy: ensure network "caddy_net" exists (create with: docker network create caddy_net)
+# Then: docker compose up -d
+# Caddy (in caddy_infra_main01) reverse-proxies e.g. statsmed.segeroth.ai -> statsmed:5000
+
+services:
+  statsmed:
+    build: .
+    container_name: statsmed
+    restart: unless-stopped
+    networks:
+      - caddy_net
+
+networks:
+  caddy_net:
+    external: true
