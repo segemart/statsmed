@@ -11,6 +11,16 @@
           <div class="form-group d-flex justify-content-center">
             <input type="file" class="form-control-file" name="file" accept=".csv,.xlsx,.xls" required style="max-width:210px;">
           </div>
+          <div class="form-group mt-2 w-100" style="max-width:210px;">
+            <label class="text-muted small mb-1">CSV delimiter</label>
+            <select name="csv_delimiter" class="form-control form-control-sm">
+              <option value="," selected>Comma (,)</option>
+              <option value="semicolon">Semicolon (;)</option>
+              <option value="tab">Tab</option>
+              <option value="pipe">Pipe (|)</option>
+            </select>
+            <small class="form-text text-muted">Only used for CSV files; ignored for Excel.</small>
+          </div>
           <button type="submit" class="btn btn-primary mt-3">Upload</button>
         </form>
       </div>

@@ -17,6 +17,7 @@ def create_app(test_config=None):
     UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'tmp')
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     HISTORY = {}  # filepath → list of result dicts (newest first)
+    DELIMITERS = {}  # filepath → delimiter char for CSV (e.g. ',', ';', '\t')
 
     @app.before_request
     def cleanup_stale_sessions():
@@ -41,7 +42,10 @@ def create_app(test_config=None):
                 os.remove(filepath)
 
     def _read_df(filepath):
-        return pd.read_csv(filepath) if filepath.endswith('.csv') else pd.read_excel(filepath)
+        if filepath.endswith('.csv'):
+            sep = DELIMITERS.get(filepath, ',')
+            return pd.read_csv(filepath, sep=sep)
+        return pd.read_excel(filepath)
 
     def _col_types(df):
         """Return dict of column name → 'numeric' or 'string'."""
@@ -76,10 +80,22 @@ def create_app(test_config=None):
         safe_name = f"{uuid.uuid4().hex}_{f.filename}"
         path = os.path.join(UPLOAD_DIR, safe_name)
         f.save(path)
+        # Store CSV delimiter for this file (only used when reading CSV)
+        delim = request.form.get('csv_delimiter', ',')
+        if delim == 'semicolon':
+            delim = ';'
+        elif delim == 'tab':
+            delim = '\t'
+        elif delim == 'pipe':
+            delim = '|'
+        else:
+            delim = ','
+        DELIMITERS[path] = delim
         try:
             _read_df(path)
         except Exception:
             os.remove(path)
+            DELIMITERS.pop(path, None)
             return redirect('/')
         HISTORY[path] = []
         return _render_upload(path, f.filename)
@@ -89,6 +105,7 @@ def create_app(test_config=None):
         filepath = request.form.get('filepath')
         if filepath:
             HISTORY.pop(filepath, None)
+            DELIMITERS.pop(filepath, None)
             if os.path.exists(filepath):
                 os.remove(filepath)
         return redirect('/')
