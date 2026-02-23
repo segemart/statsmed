@@ -2,6 +2,7 @@ import os
 import io
 import uuid
 import base64
+import logging
 import tempfile
 from datetime import datetime
 import pandas as pd
@@ -14,6 +15,7 @@ SESSION_TTL = 48 * 3600  # 48 hours in seconds
 def create_app(test_config=None):
 
     app = Flask(__name__)
+    logger = logging.getLogger(__name__)
     UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'tmp')
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     HISTORY = {}  # filepath → list of result dicts (newest first)
@@ -37,6 +39,7 @@ def create_app(test_config=None):
                 if (now - last).total_seconds() > SESSION_TTL:
                     stale.append(filepath)
         for filepath in stale:
+            logger.info(f"Cleanup: evicting stale session for {filepath}")
             HISTORY.pop(filepath, None)
             if os.path.exists(filepath):
                 os.remove(filepath)
@@ -67,6 +70,7 @@ def create_app(test_config=None):
 
     @app.route('/')
     def index():
+        logger.info("Home page accessed")
         return render_template('home.html')
 
     @app.route('/upload', methods=['POST'])
@@ -76,6 +80,7 @@ def create_app(test_config=None):
             return redirect('/')
         ext = os.path.splitext(f.filename)[1].lower()
         if ext not in {'.csv', '.xlsx', '.xls'}:
+            logger.warning(f"Upload rejected: invalid extension '{ext}' for file '{f.filename}'")
             return redirect('/')
         safe_name = f"{uuid.uuid4().hex}_{f.filename}"
         path = os.path.join(UPLOAD_DIR, safe_name)
@@ -94,9 +99,11 @@ def create_app(test_config=None):
         try:
             _read_df(path)
         except Exception:
+            logger.error(f"Upload failed: could not read file '{f.filename}'")
             os.remove(path)
             DELIMITERS.pop(path, None)
             return redirect('/')
+        logger.info(f"File uploaded: '{f.filename}' -> {safe_name}")
         HISTORY[path] = []
         return _render_upload(path, f.filename)
 
@@ -104,6 +111,7 @@ def create_app(test_config=None):
     def clear():
         filepath = request.form.get('filepath')
         if filepath:
+            logger.info(f"File removed: {filepath}")
             HISTORY.pop(filepath, None)
             DELIMITERS.pop(filepath, None)
             if os.path.exists(filepath):
@@ -175,9 +183,11 @@ def create_app(test_config=None):
             dup_warning = ("WARNING: The same column was selected for multiple inputs. "
                            "Results may be erroneous.\n\n")
 
+        logger.info(f"Running test '{test_id}' on columns: {col_names}")
         try:
             text, figure = test['run'](df, params)
         except Exception as e:
+            logger.error(f"Test '{test_id}' failed: {e}")
             text, figure = f"Error: {e}", None
 
         # Prepend warnings and conversion info to text output
@@ -211,6 +221,7 @@ def create_app(test_config=None):
         idx = int(request.form.get('idx', -1))
         history = HISTORY.get(filepath, [])
         if 0 <= idx < len(history):
+            logger.info(f"Result deleted: index {idx} for {filename}")
             history.pop(idx)
         if not filepath or not os.path.exists(filepath):
             return redirect('/')
@@ -221,6 +232,7 @@ def create_app(test_config=None):
         filepath = request.form.get('filepath')
         filename = request.form.get('filename', 'data')
         history = HISTORY.get(filepath, [])
+        logger.info(f"PDF download requested for '{filename}' ({len(history)} results)")
 
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
