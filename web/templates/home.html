@@ -9,20 +9,25 @@
         <p class="text-muted">Upload a CSV or Excel file to get started with statistical analysis.</p>
         <form method="POST" action="/upload" enctype="multipart/form-data" class="d-flex flex-column align-items-center">
           <div class="form-group d-flex justify-content-center">
-            <input type="file" class="form-control-file" name="file" accept=".csv,.xlsx,.xls" required style="max-width:210px;">
+            <input type="file" class="form-control-file" id="file-input" name="file" accept=".csv,.xlsx,.xls" required style="max-width:210px;">
           </div>
-          <div class="form-group mt-2 w-100" style="max-width:210px;">
-            <label class="text-muted small mb-1">CSV delimiter</label>
+          <div class="form-group mt-2 w-100" id="delimiter-group" style="max-width:210px; display:none;">
+            <label class="text-muted small mb-1">Delimiter</label>
             <select name="csv_delimiter" class="form-control form-control-sm">
               <option value="," selected>Comma (,)</option>
               <option value="semicolon">Semicolon (;)</option>
               <option value="tab">Tab</option>
               <option value="pipe">Pipe (|)</option>
             </select>
-            <small class="form-text text-muted">Only used for CSV files; ignored for Excel.</small>
           </div>
           <button type="submit" class="btn btn-primary mt-3">Upload</button>
         </form>
+        <script>
+        document.getElementById('file-input').addEventListener('change', function() {
+          var name = this.value.toLowerCase();
+          document.getElementById('delimiter-group').style.display = name.endsWith('.csv') ? 'block' : 'none';
+        });
+        </script>
       </div>
     </div>
   </div>
