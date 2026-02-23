@@ -234,9 +234,23 @@ def create_app(test_config=None):
         history = HISTORY.get(filepath, [])
         logger.info(f"PDF download requested for '{filename}' ({len(history)} results)")
 
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
+        logo_path = os.path.join(os.path.dirname(__file__), 'static', 'images', 'statsmed_logo_transp.png')
+
+        class StatsmedPDF(FPDF):
+            def footer(self):
+                self.set_y(-15)
+                self.set_font('Helvetica', 'I', 8)
+                self.set_text_color(150, 150, 150)
+                self.cell(0, 10, f'\u00a9 {datetime.now().year} Martin Segeroth, Ashraya Indrakanti', align='C')
+
+        pdf = StatsmedPDF()
+        pdf.set_auto_page_break(auto=True, margin=20)
         pdf.add_page()
+
+        if os.path.exists(logo_path):
+            logo_w = 25
+            pdf.image(logo_path, x=pdf.w - pdf.r_margin - logo_w, y=pdf.t_margin, w=logo_w)
+
         pdf.set_font('Helvetica', 'B', 18)
         pdf.cell(0, 12, 'Statsmed Analysis Report', ln=True)
         pdf.set_font('Helvetica', '', 10)
