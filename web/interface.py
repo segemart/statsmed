@@ -53,93 +53,121 @@ def _docstring(func):
 # Run functions: each takes (df, params) and returns (text, figure_or_None)
 # ---------------------------------------------------------------------------
 
+def _nan_note(n_before, n_after):
+    """Return a note about dropped rows, or empty string if none were dropped."""
+    dropped = n_before - n_after
+    if dropped > 0:
+        return f"[{dropped} row(s) with NaN excluded, {n_after} used]\n"
+    return ""
+
+
 def run_normality(df, params):
-    x = df[params["x"]].dropna().values.astype(float)
-    text = _capture(stdnorm_test, x)
+    col = df[params["x"]]
+    n_before = len(col)
+    x = col.dropna().values.astype(float)
+    text = _nan_note(n_before, len(x)) + _capture(stdnorm_test, x)
     return text, None
 
 
 def run_descriptive(df, params):
-    x = df[params["x"]].dropna().values.astype(float)
-    text = _capture(get_desc, x, mode='all')
+    col = df[params["x"]]
+    n_before = len(col)
+    x = col.dropna().values.astype(float)
+    text = _nan_note(n_before, len(x)) + _capture(get_desc, x, mode='all')
     return text, None
 
 
 def run_correlation(df, params):
-    sub = df[[params["x"], params["y"]]].dropna()
+    raw = df[[params["x"], params["y"]]]
+    n_before = len(raw)
+    sub = raw.dropna()
     x = sub[params["x"]].values.astype(float)
     y = sub[params["y"]].values.astype(float)
-    text = _capture(corr_two_gr, x, y, mode='all')
+    text = _nan_note(n_before, len(sub)) + _capture(corr_two_gr, x, y, mode='all')
     fig, ax = plt.subplots(figsize=(8, 6))
     corr_scatter_figure(x, y, ax, x_label=params["x"], y_label=params["y"], quiet=True)
     return text, _fig_to_base64()
 
 
 def run_comparison(df, params):
-    sub = df[[params["x"], params["y"]]].dropna()
+    raw = df[[params["x"], params["y"]]]
+    n_before = len(raw)
+    sub = raw.dropna()
     x = sub[params["x"]].values.astype(float)
     y = sub[params["y"]].values.astype(float)
     independent = params.get("independent", True)
-    text = _capture(comp_two_gr_continuous, x, y, independent)
+    text = _nan_note(n_before, len(sub)) + _capture(comp_two_gr_continuous, x, y, independent)
     return text, None
 
 
 def run_bland_altman(df, params):
-    sub = df[[params["x"], params["y"]]].dropna()
+    raw = df[[params["x"], params["y"]]]
+    n_before = len(raw)
+    sub = raw.dropna()
     x = sub[params["x"]].values.astype(float)
     y = sub[params["y"]].values.astype(float)
-    text = _capture(bland_altman_bias_and_limits, x, y)
+    text = _nan_note(n_before, len(sub)) + _capture(bland_altman_bias_and_limits, x, y)
     fig, ax = plt.subplots(figsize=(8, 6))
     bland_altman_plot(x, y, ax, x_label=params["x"], y_label=params["y"])
     return text, _fig_to_base64()
 
 
 def run_acc_sens(df, params):
-    sub = df[[params["gt"], params["x"]]].dropna()
+    raw = df[[params["gt"], params["x"]]]
+    n_before = len(raw)
+    sub = raw.dropna()
     gt = sub[params["gt"]].values.astype(float)
     x = sub[params["x"]].values.astype(float)
-    text = _capture(acc_sens, gt, x)
+    text = _nan_note(n_before, len(sub)) + _capture(acc_sens, gt, x)
     return text, None
 
 
 def run_roc(df, params):
-    sub = df[[params["true_base"], params["pred_value"]]].dropna()
+    raw = df[[params["true_base"], params["pred_value"]]]
+    n_before = len(raw)
+    sub = raw.dropna()
     true_base = sub[params["true_base"]].values.astype(float)
     pred_value = sub[params["pred_value"]].values.astype(float)
     positive_label = params["positive_label"]
     nsamples = int(params.get("nsamples", 1000))
     fig, ax = plt.subplots(figsize=(8, 6))
-    text = _capture(ROC_fig, true_base, pred_value, positive_label,
+    text = _nan_note(n_before, len(sub)) + _capture(ROC_fig, true_base, pred_value, positive_label,
                     nsamples=nsamples, x=ax)
     return text, _fig_to_base64()
 
 
 def run_compare_prop_dep(df, params):
-    sub = df[[params["gt"], params["x"], params["y"]]].dropna()
+    raw = df[[params["gt"], params["x"], params["y"]]]
+    n_before = len(raw)
+    sub = raw.dropna()
     gt = sub[params["gt"]].values.astype(float)
     x = sub[params["x"]].values.astype(float)
     y = sub[params["y"]].values.astype(float)
-    text = _capture(compare_proportions_dep, gt, x, y)
+    text = _nan_note(n_before, len(sub)) + _capture(compare_proportions_dep, gt, x, y)
     return text, None
 
 
 def run_compare_prop_ind(df, params):
     cols = [params["gt_x"], params["x"], params["gt_y"], params["y"]]
-    sub = df[cols].dropna()
+    raw = df[cols]
+    n_before = len(raw)
+    sub = raw.dropna()
     gt_x = sub[params["gt_x"]].values.astype(float)
     x = sub[params["x"]].values.astype(float)
     gt_y = sub[params["gt_y"]].values.astype(float)
     y = sub[params["y"]].values.astype(float)
-    text = _capture(compare_proportions_ind_sens_precision, gt_x, x, gt_y, y)
+    text = _nan_note(n_before, len(sub)) + _capture(compare_proportions_ind_sens_precision, gt_x, x, gt_y, y)
     return text, None
 
 
 def run_mcnemar(df, params):
-    sub = df[[params["test1"], params["test2"], params["gt"]]].dropna()
+    raw = df[[params["test1"], params["test2"], params["gt"]]]
+    n_before = len(raw)
+    sub = raw.dropna()
     test1 = sub[params["test1"]].values.astype(float)
     test2 = sub[params["test2"]].values.astype(float)
     gt = sub[params["gt"]].values.astype(float)
-    text = _capture(mc_nemar_test, test1, test2, gt)
+    text = _nan_note(n_before, len(sub)) + _capture(mc_nemar_test, test1, test2, gt)
     return text, None
 
 
@@ -161,7 +189,9 @@ def _format_noninf(label, tstat, sig, pval, relad, alpha):
 
 
 def run_non_inf(df, params):
-    sub = df[[params["x"], params["y"]]].dropna()
+    raw = df[[params["x"], params["y"]]]
+    n_before = len(raw)
+    sub = raw.dropna()
     x = sub[params["x"]].values.astype(float)
     y = sub[params["y"]].values.astype(float)
     relad = params["relad"]
@@ -173,11 +203,13 @@ def run_non_inf(df, params):
     else:
         tstat, sig, pval = non_inferiority_ttest(x, y, relad, alpha)
         label = "Non-inferiority t-test"
-    return _format_noninf(label, tstat, sig, pval, relad, alpha), None
+    return _nan_note(n_before, len(sub)) + _format_noninf(label, tstat, sig, pval, relad, alpha), None
 
 
 def run_non_sup(df, params):
-    sub = df[[params["x"], params["y"]]].dropna()
+    raw = df[[params["x"], params["y"]]]
+    n_before = len(raw)
+    sub = raw.dropna()
     x = sub[params["x"]].values.astype(float)
     y = sub[params["y"]].values.astype(float)
     relad = params["relad"]
@@ -192,26 +224,30 @@ def run_non_sup(df, params):
     else:
         tstat, sig, pval = non_superiority_ttest(x, y, relad, alpha)
         label = "Non-superiority t-test"
-    return _format_noninf(label, tstat, sig, pval, relad, alpha), None
+    return _nan_note(n_before, len(sub)) + _format_noninf(label, tstat, sig, pval, relad, alpha), None
 
 
 def run_multivar_linear(df, params):
     target_col = params["target"]
     feature_cols = params["features"]
-    sub = df[[target_col] + feature_cols].dropna()
+    raw = df[[target_col] + feature_cols]
+    n_before = len(raw)
+    sub = raw.dropna()
     target = sub[target_col].values.astype(float)
     data = [sub[c].values.astype(float) for c in feature_cols]
-    text = _capture(multivariate_linear_lasso, data, target, columns=feature_cols)
+    text = _nan_note(n_before, len(sub)) + _capture(multivariate_linear_lasso, data, target, columns=feature_cols)
     return text, None
 
 
 def run_multivar_logistic(df, params):
     target_col = params["target"]
     feature_cols = params["features"]
-    sub = df[[target_col] + feature_cols].dropna()
+    raw = df[[target_col] + feature_cols]
+    n_before = len(raw)
+    sub = raw.dropna()
     target = sub[target_col].values.astype(float)
     data = [sub[c].values.astype(float) for c in feature_cols]
-    text = _capture(multivariate_logistic_lasso, data, target, columns=feature_cols)
+    text = _nan_note(n_before, len(sub)) + _capture(multivariate_logistic_lasso, data, target, columns=feature_cols)
     return text, None
 
 
@@ -220,7 +256,10 @@ def run_poisson_negbin(df, params):
     count_col = params["count_col"]
     model_type = params.get("model_type", "poisson")
     time_as = params.get("time_as", "categorical")
-    text = _capture(poisson_negbin_rate_change, df,
+    raw = df[[time_col, count_col]]
+    n_before = len(raw)
+    sub_df = df.dropna(subset=[time_col, count_col])
+    text = _nan_note(n_before, len(sub_df)) + _capture(poisson_negbin_rate_change, sub_df,
                     time_col=time_col, count_col=count_col,
                     model=model_type, time_as=time_as)
     return text, None
