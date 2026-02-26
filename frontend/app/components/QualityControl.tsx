@@ -7,16 +7,18 @@ import {
   deleteQCOperation,
   listQCFunctions,
   createQCFunction,
-  updateQCFunction,
   deleteQCFunction,
   regenerateQCApiKey,
   runQualityControl,
+  getTests,
   type QCOperation,
   type QCFunction,
 } from '../lib/api';
+import type { TestSchema } from '../lib/api';
 import styles from './QualityControl.module.css';
 
 const FUNCTION_TYPES = [
+  { value: 'statsmed_test', label: 'Statsmed test', configHint: 'Select test and map columns' },
   { value: 'missing', label: 'Check missing values', configHint: 'columns: array of column names' },
   { value: 'range', label: 'Check range', configHint: 'column, min, max' },
   { value: 'custom', label: 'Custom (placeholder)', configHint: '-' },
@@ -33,8 +35,11 @@ export default function QualityControl() {
   const [loading, setLoading] = useState(false);
   const [addFnOpen, setAddFnOpen] = useState(false);
   const [addFnName, setAddFnName] = useState('');
-  const [addFnType, setAddFnType] = useState('missing');
+  const [addFnType, setAddFnType] = useState('statsmed_test');
   const [addFnConfig, setAddFnConfig] = useState('{}');
+  const [testsSchema, setTestsSchema] = useState<Record<string, TestSchema>>({});
+  const [addFnTestId, setAddFnTestId] = useState('');
+  const [addFnParams, setAddFnParams] = useState<Record<string, unknown>>({});
   const [testDataJson, setTestDataJson] = useState('[{"a":1,"b":2},{"a":null,"b":3}]');
   const [testResult, setTestResult] = useState<{ success: boolean; results: { name: string; passed: boolean; message: string }[] } | null>(null);
   const [revealedKey, setRevealedKey] = useState<number | null>(null);
@@ -67,7 +72,36 @@ export default function QualityControl() {
     else setFunctions([]);
   }, [selectedOpId, loadFunctions]);
 
+  useEffect(() => {
+    if (addFnOpen && addFnType === 'statsmed_test') {
+      getTests().then(setTestsSchema).catch(() => setTestsSchema({}));
+    }
+  }, [addFnOpen, addFnType]);
+
+  useEffect(() => {
+    if (!addFnTestId || !testsSchema[addFnTestId]) {
+      setAddFnParams({});
+      return;
+    }
+    const test = testsSchema[addFnTestId];
+    const initial: Record<string, unknown> = {};
+    test.inputs.forEach((inp) => {
+      if (inp.type === 'boolean') initial[inp.name] = inp.default ?? false;
+      else if (inp.type === 'number' || inp.type === 'select') initial[inp.name] = inp.default ?? '';
+      else if (inp.type === 'multi_column') initial[inp.name] = [];
+      else initial[inp.name] = '';
+    });
+    setAddFnParams((prev) => {
+      const next = { ...initial };
+      test.inputs.forEach((inp) => {
+        if (prev[inp.name] !== undefined && prev[inp.name] !== '') next[inp.name] = prev[inp.name];
+      });
+      return next;
+    });
+  }, [addFnTestId, testsSchema]);
+
   const selectedOp = operations.find((o) => o.id === selectedOpId);
+  const selectedTest = addFnTestId ? testsSchema[addFnTestId] : null;
 
   const handleCreate = async () => {
     const name = createName.trim();
@@ -109,11 +143,29 @@ export default function QualityControl() {
     if (!selectedOpId) return;
     const name = addFnName.trim() || 'Unnamed';
     let config: Record<string, unknown> = {};
-    try {
-      config = addFnConfig.trim() ? JSON.parse(addFnConfig) : {};
-    } catch {
-      setError('Invalid JSON config');
-      return;
+    if (addFnType === 'statsmed_test') {
+      if (!addFnTestId) {
+        setError('Select a Statsmed test');
+        return;
+      }
+      config = { test_id: addFnTestId, params: { ...addFnParams } };
+      if (selectedTest) {
+        selectedTest.inputs.forEach((inp) => {
+          if (inp.type === 'multi_column') {
+            const v = (config.params as Record<string, unknown>)[inp.name];
+            (config.params as Record<string, unknown>)[inp.name] = typeof v === 'string'
+              ? (v ? (v as string).split(',').map((s) => s.trim()).filter(Boolean) : [])
+              : Array.isArray(v) ? v : [];
+          }
+        });
+      }
+    } else {
+      try {
+        config = addFnConfig.trim() ? JSON.parse(addFnConfig) : {};
+      } catch {
+        setError('Invalid JSON config');
+        return;
+      }
     }
     setError('');
     setLoading(true);
@@ -123,6 +175,8 @@ export default function QualityControl() {
       setAddFnOpen(false);
       setAddFnName('');
       setAddFnConfig('{}');
+      setAddFnTestId('');
+      setAddFnParams({});
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed');
     } finally {
@@ -301,26 +355,104 @@ export default function QualityControl() {
                   className={styles.input}
                   value={addFnName}
                   onChange={(e) => setAddFnName(e.target.value)}
-                  placeholder="e.g. Check missing in critical columns"
+                  placeholder={addFnType === 'statsmed_test' ? 'e.g. Normality check on Age' : 'e.g. Check missing in critical columns'}
                 />
                 <label className={styles.label}>Type</label>
-                <select className={styles.select} value={addFnType} onChange={(e) => setAddFnType(e.target.value)}>
+                <select className={styles.select} value={addFnType} onChange={(e) => { setAddFnType(e.target.value); setAddFnTestId(''); setAddFnParams({}); }}>
                   {FUNCTION_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </select>
-                <label className={styles.label}>Config (JSON) — e.g. missing: {`{"columns": ["col1", "col2"]}`}, range: {`{"column": "x", "min": 0, "max": 100}`}</label>
-                <textarea
-                  className={styles.textarea}
-                  value={addFnConfig}
-                  onChange={(e) => setAddFnConfig(e.target.value)}
-                  rows={3}
-                />
+
+                {addFnType === 'statsmed_test' ? (
+                  <>
+                    <label className={styles.label}>Statsmed test</label>
+                    <select
+                      className={styles.select}
+                      value={addFnTestId}
+                      onChange={(e) => setAddFnTestId(e.target.value)}
+                    >
+                      <option value="">— Select a test —</option>
+                      {Object.entries(testsSchema).map(([id, t]) => (
+                        <option key={id} value={id}>{t.label}</option>
+                      ))}
+                    </select>
+                    {selectedTest && (
+                      <>
+                        <p className={styles.muted}>{selectedTest.description}</p>
+                        {selectedTest.inputs.map((inp) => (
+                          <div key={inp.name}>
+                            <label className={styles.label}>{inp.label}</label>
+                            {inp.type === 'column' && (
+                              <input
+                                type="text"
+                                className={styles.input}
+                                value={(addFnParams[inp.name] as string) ?? ''}
+                                onChange={(e) => setAddFnParams((p) => ({ ...p, [inp.name]: e.target.value }))}
+                                placeholder="Column name in your data"
+                              />
+                            )}
+                            {inp.type === 'multi_column' && (
+                              <input
+                                type="text"
+                                className={styles.input}
+                                value={Array.isArray(addFnParams[inp.name]) ? (addFnParams[inp.name] as string[]).join(', ') : (addFnParams[inp.name] as string) ?? ''}
+                                onChange={(e) => setAddFnParams((p) => ({ ...p, [inp.name]: e.target.value }))}
+                                placeholder="Column names, comma-separated"
+                              />
+                            )}
+                            {inp.type === 'number' && (
+                              <input
+                                type="number"
+                                className={styles.input}
+                                step="any"
+                                value={(addFnParams[inp.name] as number) ?? inp.default ?? ''}
+                                onChange={(e) => setAddFnParams((p) => ({ ...p, [inp.name]: e.target.value === '' ? inp.default : Number(e.target.value) }))}
+                              />
+                            )}
+                            {inp.type === 'boolean' && (
+                              <label className={styles.checkLabel}>
+                                <input
+                                  type="checkbox"
+                                  checked={(addFnParams[inp.name] as boolean) ?? inp.default ?? false}
+                                  onChange={(e) => setAddFnParams((p) => ({ ...p, [inp.name]: e.target.checked }))}
+                                />
+                                {inp.label}
+                              </label>
+                            )}
+                            {inp.type === 'select' && (
+                              <select
+                                className={styles.select}
+                                value={(addFnParams[inp.name] as string) ?? inp.default ?? ''}
+                                onChange={(e) => setAddFnParams((p) => ({ ...p, [inp.name]: e.target.value }))}
+                              >
+                                {inp.options?.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <label className={styles.label}>Config (JSON) — e.g. missing: {`{"columns": ["col1", "col2"]}`}, range: {`{"column": "x", "min": 0, "max": 100}`}</label>
+                    <textarea
+                      className={styles.textarea}
+                      value={addFnConfig}
+                      onChange={(e) => setAddFnConfig(e.target.value)}
+                      rows={3}
+                    />
+                  </>
+                )}
+
                 <div className={styles.buttonRow}>
                   <button type="button" className={styles.primaryButton} onClick={handleAddFunction} disabled={loading}>
                     {loading ? 'Adding...' : 'Add'}
                   </button>
-                  <button type="button" className={styles.secondaryButton} onClick={() => setAddFnOpen(false)}>Cancel</button>
+                  <button type="button" className={styles.secondaryButton} onClick={() => { setAddFnOpen(false); setAddFnTestId(''); setAddFnParams({}); }}>Cancel</button>
                 </div>
               </div>
             )}
@@ -329,8 +461,21 @@ export default function QualityControl() {
               {functions.map((fn) => (
                 <li key={fn.id} className={styles.functionItem}>
                   <span className={styles.functionName}>{fn.name}</span>
-                  <span className={styles.functionType}>{fn.function_type}</span>
-                  {fn.config && Object.keys(fn.config).length > 0 && (
+                  <span className={styles.functionType}>
+                    {fn.function_type === 'statsmed_test' && fn.config && typeof fn.config === 'object' && 'test_id' in fn.config
+                      ? `Statsmed: ${(fn.config as { test_id?: string }).test_id}`
+                      : fn.function_type}
+                  </span>
+                  {fn.config && typeof fn.config === 'object' && 'params' in fn.config && fn.function_type === 'statsmed_test' && (
+                    <code className={styles.functionConfig}>
+                      {(fn.config as { params?: Record<string, unknown> }).params && Object.entries((fn.config as { params: Record<string, unknown> }).params).length > 0
+                        ? Object.entries((fn.config as { params: Record<string, unknown> }).params)
+                            .map(([k, v]) => `${k} → ${Array.isArray(v) ? v.join(', ') : String(v)}`)
+                            .join('; ')
+                        : (fn.config as { test_id?: string }).test_id}
+                    </code>
+                  )}
+                  {fn.config && fn.function_type !== 'statsmed_test' && Object.keys(fn.config).length > 0 && (
                     <code className={styles.functionConfig}>{JSON.stringify(fn.config)}</code>
                   )}
                   <button type="button" className={styles.removeButton} onClick={() => handleDeleteFunction(fn.id)}>×</button>

@@ -1,9 +1,12 @@
 """
 Quality control run engine: execute a list of functions on incoming data.
-Each function has a type (missing, range, ...) and config; returns pass/fail and message.
+Each function has a type (missing, range, statsmed_test, ...) and config; returns pass/fail and message.
 """
-import json
 from typing import Any
+
+import pandas as pd
+
+from .run_analysis import run_test_with_df
 
 
 def run_missing(rows: list[dict], config: dict) -> tuple[bool, str]:
@@ -57,10 +60,28 @@ def run_custom(rows: list[dict], config: dict) -> tuple[bool, str]:
     return True, "Custom check not implemented (placeholder)"
 
 
+def run_statsmed_test(rows: list[dict], config: dict) -> tuple[bool, str]:
+    """Run a statsmed test (from TESTS) with column mapping. config: { test_id, params }."""
+    test_id = config.get("test_id")
+    params = config.get("params") or {}
+    if not test_id:
+        return False, "No test_id in config"
+    if not rows:
+        return False, "No data rows"
+    try:
+        df = pd.DataFrame(rows)
+        text, _ = run_test_with_df(df, test_id, params)
+        passed = "Error:" not in text
+        return passed, text
+    except Exception as e:
+        return False, str(e)
+
+
 FUNCTION_RUNNERS = {
     "missing": run_missing,
     "range": run_range,
     "custom": run_custom,
+    "statsmed_test": run_statsmed_test,
 }
 
 
