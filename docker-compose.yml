@@ -1,15 +1,50 @@
-# Run behind Caddy: ensure network "caddy_net" exists (create with: docker network create caddy_net)
-# Then: docker compose up -d
-# Caddy (in caddy_infra_main01) reverse-proxies e.g. statsmed.segeroth.ai -> statsmed:5000
+# Statsmed: PostgreSQL + FastAPI backend + Next.js frontend (login, register, saved data)
+# Run: docker compose up -d
+# Frontend: http://localhost:3000   Backend API: http://localhost:8000
 
 services:
-  statsmed:
-    build: .
-    container_name: statsmed
-    restart: unless-stopped
-    networks:
-      - caddy_net
+  postgres:
+    image: postgres:15-alpine
+    container_name: statsmed_postgres
+    environment:
+      POSTGRES_USER: statsmed
+      POSTGRES_PASSWORD: statsmed
+      POSTGRES_DB: statsmed
+    ports:
+      - "5432:5432"
+    volumes:
+      - statsmed_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U statsmed"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-networks:
-  caddy_net:
-    external: true
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: statsmed_backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://statsmed:statsmed@postgres:5432/statsmed
+      JWT_SECRET: ${JWT_SECRET:-statsmed-dev-secret-change-in-production}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: statsmed_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  statsmed_pgdata:

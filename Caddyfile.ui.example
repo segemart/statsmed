@@ -1,0 +1,23 @@
+# Example Caddy config for the new Statsmed UI (Next.js + FastAPI).
+# Copy this block into your existing Caddyfile (wherever it lives),
+# or include it:  import /path/to/statsmed/Caddyfile.ui.example
+#
+# Replace statsmed-ui.example.com with your domain.
+# Upstreams: use Docker service names if Caddy and statsmed run on the same
+# Docker network (e.g. backend:8000, frontend:3000). Otherwise use host:port
+# (e.g. localhost:8000, localhost:3000 or your server IP).
+
+statsmed-ui.example.com {
+    handle /auth/* {
+        reverse_proxy backend:8000
+    }
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+    handle /health {
+        reverse_proxy backend:8000
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+}

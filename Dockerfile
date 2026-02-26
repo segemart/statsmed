@@ -1,17 +1,20 @@
-# statsmed web app – production image for use behind Caddy
-FROM python:3.12-slim
+# Statsmed API (FastAPI + PostgreSQL). Built from repo root.
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install package + web extras and gunicorn
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml .
-COPY statsmed ./statsmed
-COPY web ./web
-COPY wsgi.py .
+COPY statsmed/ statsmed/
+COPY web/ web/
+COPY backend/ backend/
 
-RUN pip install --no-cache-dir -e ".[web]" gunicorn
+RUN pip install --no-cache-dir -e ".[web]" && \
+    pip install --no-cache-dir -r backend/requirements.txt
 
-EXPOSE 5000
-
-# Production server; Caddy reverse-proxies to this port
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "--timeout", "120", "wsgi:application"]
+ENV PYTHONPATH=/app
+EXPOSE 8000
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
