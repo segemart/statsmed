@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
+import QualityControl from './components/QualityControl';
 
 export default function Home() {
   const [section, setSection] = useState<'data-analysis' | 'quality-control'>('data-analysis');
@@ -15,9 +16,7 @@ export default function Home() {
       {section === 'data-analysis' ? (
         <Dashboard />
       ) : (
-        <div style={{ padding: 24, color: 'var(--text-secondary)' }}>
-          Quality control — coming soon.
-        </div>
+        <QualityControl />
       )}
     </LandingPage>
   );

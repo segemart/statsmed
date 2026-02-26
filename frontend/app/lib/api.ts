@@ -193,3 +193,148 @@ export async function downloadPdf(fileId: number): Promise<Blob> {
   if (!res.ok) throw new Error('Failed to download PDF');
   return res.blob();
 }
+
+// ----- Quality control -----
+
+export interface QCOperation {
+  id: number;
+  name: string;
+  api_key?: string | null;
+  created_at: string;
+}
+
+export interface QCFunction {
+  id: number;
+  name: string;
+  function_type: string;
+  config: Record<string, unknown> | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export async function createQCOperation(name: string): Promise<QCOperation> {
+  const res = await authFetch(`${getApiUrl()}/api/quality/operations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'Failed to create operation');
+  }
+  return res.json();
+}
+
+export async function listQCOperations(): Promise<QCOperation[]> {
+  const res = await authFetch(`${getApiUrl()}/api/quality/operations`);
+  if (!res.ok) throw new Error('Failed to list operations');
+  return res.json();
+}
+
+export async function getQCOperation(operationId: number): Promise<QCOperation> {
+  const res = await authFetch(`${getApiUrl()}/api/quality/operations/${operationId}`);
+  if (!res.ok) throw new Error('Failed to get operation');
+  return res.json();
+}
+
+export async function updateQCOperation(operationId: number, name: string): Promise<QCOperation> {
+  const res = await authFetch(`${getApiUrl()}/api/quality/operations/${operationId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'Failed to update operation');
+  }
+  return res.json();
+}
+
+export async function regenerateQCApiKey(operationId: number): Promise<QCOperation> {
+  const res = await authFetch(`${getApiUrl()}/api/quality/operations/${operationId}/regenerate-key`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to regenerate key');
+  return res.json();
+}
+
+export async function deleteQCOperation(operationId: number): Promise<void> {
+  const res = await authFetch(`${getApiUrl()}/api/quality/operations/${operationId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete operation');
+}
+
+export async function createQCFunction(
+  operationId: number,
+  name: string,
+  functionType: string,
+  config?: Record<string, unknown> | null,
+  sortOrder?: number
+): Promise<QCFunction> {
+  const res = await authFetch(`${getApiUrl()}/api/quality/operations/${operationId}/functions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, function_type: functionType, config: config ?? null, sort_order: sortOrder }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'Failed to create function');
+  }
+  return res.json();
+}
+
+export async function listQCFunctions(operationId: number): Promise<QCFunction[]> {
+  const res = await authFetch(`${getApiUrl()}/api/quality/operations/${operationId}/functions`);
+  if (!res.ok) throw new Error('Failed to list functions');
+  return res.json();
+}
+
+export async function updateQCFunction(
+  operationId: number,
+  functionId: number,
+  updates: { name?: string; function_type?: string; config?: Record<string, unknown> | null; sort_order?: number }
+): Promise<QCFunction> {
+  const res = await authFetch(
+    `${getApiUrl()}/api/quality/operations/${operationId}/functions/${functionId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'Failed to update function');
+  }
+  return res.json();
+}
+
+export async function deleteQCFunction(operationId: number, functionId: number): Promise<void> {
+  const res = await authFetch(
+    `${getApiUrl()}/api/quality/operations/${operationId}/functions/${functionId}`,
+    { method: 'DELETE' }
+  );
+  if (!res.ok) throw new Error('Failed to delete function');
+}
+
+export async function runQualityControl(apiKey: string, data: Record<string, unknown>[]): Promise<{
+  operation_id: number;
+  operation_name: string;
+  success: boolean;
+  results: { name: string; function_type: string; passed: boolean; message: string }[];
+}> {
+  const res = await fetch(`${getApiUrl()}/api/quality/run`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey,
+    },
+    body: JSON.stringify({ data }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'Run failed');
+  }
+  return res.json();
+}

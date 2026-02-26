@@ -2,7 +2,7 @@
 SQLAlchemy models for statsmed: User, DataFile, AnalysisResult.
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
@@ -19,6 +19,9 @@ class User(Base):
     is_active = Column(Boolean, default=True)
 
     data_files = relationship("DataFile", back_populates="user", cascade="all, delete-orphan")
+    quality_control_operations = relationship(
+        "QualityControlOperation", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}')>"
@@ -65,3 +68,46 @@ class AnalysisResult(Base):
 
     def __repr__(self):
         return f"<AnalysisResult(id={self.id}, test_id='{self.test_id}')>"
+
+
+class QualityControlOperation(Base):
+    """User-defined quality control operation: unique name and API key for external access."""
+    __tablename__ = "quality_control_operations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    api_key = Column(String(64), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="quality_control_operations")
+    functions = relationship(
+        "QualityControlFunction",
+        back_populates="operation",
+        cascade="all, delete-orphan",
+        order_by="QualityControlFunction.sort_order",
+    )
+
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_user_qc_operation_name"),)
+
+    def __repr__(self):
+        return f"<QualityControlOperation(id={self.id}, name='{self.name}')>"
+
+
+class QualityControlFunction(Base):
+    """A function that runs within a quality control operation (e.g. check missing, check range)."""
+    __tablename__ = "quality_control_functions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    operation_id = Column(Integer, ForeignKey("quality_control_operations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    function_type = Column(String(80), nullable=False)  # e.g. "missing", "range", "custom"
+    config_json = Column(Text, nullable=True)  # JSON string: parameters for the function
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    operation = relationship("QualityControlOperation", back_populates="functions")
+
+    def __repr__(self):
+        return f"<QualityControlFunction(id={self.id}, name='{self.name}', type='{self.function_type}')>"

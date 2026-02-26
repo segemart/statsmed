@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .db.database import engine
 from .db.models import Base
-from .routers import auth, data
+from .routers import auth, data, quality
 
 app = FastAPI(
     title="Statsmed API",
@@ -21,6 +21,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(data.router)
+app.include_router(quality.router)
 
 
 @app.on_event("startup")
