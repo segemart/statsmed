@@ -13,10 +13,11 @@ dependencies = [
     "scikit-learn>=1.6.1",
     "scipy>=1.10.1",
     "statsmodels>=0.12.2",
+    "pandas",
 ]
 
 [project.optional-dependencies]
-web = ["flask", "fpdf2", "pandas", "openpyxl"]
+web = ["flask", "fpdf2", "openpyxl"]
 
 [build-system]
 requires = ["setuptools"]
