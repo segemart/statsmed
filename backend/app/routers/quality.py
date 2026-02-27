@@ -111,7 +111,7 @@ def list_operations(
         QualityControlOperation.user_id == current_user.id,
     ).order_by(QualityControlOperation.name).all()
     return [
-        OperationResponse(id=op.id, name=op.name, api_key=None, created_at=op.created_at.isoformat())
+        OperationResponse(id=op.id, name=op.name, api_key=op.api_key, created_at=op.created_at.isoformat())
         for op in ops
     ]
 
@@ -126,7 +126,7 @@ def get_operation(
     return OperationResponse(
         id=op.id,
         name=op.name,
-        api_key=None,
+        api_key=op.api_key,
         created_at=op.created_at.isoformat(),
     )
 
@@ -152,25 +152,7 @@ def update_operation(
         op.name = name
     db.commit()
     db.refresh(op)
-    return OperationResponse(id=op.id, name=op.name, api_key=None, created_at=op.created_at.isoformat())
-
-
-@router.post("/operations/{operation_id}/regenerate-key", response_model=OperationResponse)
-def regenerate_api_key(
-    operation_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    op = ensure_user_owns_operation(db, current_user, operation_id)
-    op.api_key = secrets.token_urlsafe(32)
-    db.commit()
-    db.refresh(op)
-    return OperationResponse(
-        id=op.id,
-        name=op.name,
-        api_key=op.api_key,
-        created_at=op.created_at.isoformat(),
-    )
+    return OperationResponse(id=op.id, name=op.name, api_key=op.api_key, created_at=op.created_at.isoformat())
 
 
 @router.delete("/operations/{operation_id}")

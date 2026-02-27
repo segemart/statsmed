@@ -8,7 +8,6 @@ import {
   listQCFunctions,
   createQCFunction,
   deleteQCFunction,
-  regenerateQCApiKey,
   runQualityControl,
   getTests,
   type QCOperation,
@@ -42,8 +41,6 @@ export default function QualityControl() {
   const [addFnParams, setAddFnParams] = useState<Record<string, unknown>>({});
   const [testDataJson, setTestDataJson] = useState('[{"a":1,"b":2},{"a":null,"b":3}]');
   const [testResult, setTestResult] = useState<{ success: boolean; results: { name: string; passed: boolean; message: string }[] } | null>(null);
-  const [revealedKey, setRevealedKey] = useState<number | null>(null);
-  const [storedKeys, setStoredKeys] = useState<Record<number, string>>({});
 
   const loadOperations = useCallback(async () => {
     try {
@@ -113,10 +110,7 @@ export default function QualityControl() {
     setLoading(true);
     try {
       const op = await createQCOperation(name);
-      if (op.api_key) {
-        setCreatedApiKey(op.api_key);
-        setStoredKeys((k) => ({ ...k, [op.id]: op.api_key! }));
-      }
+      if (op.api_key) setCreatedApiKey(op.api_key);
       await loadOperations();
       setSelectedOpId(op.id);
       setCreateName('');
@@ -124,18 +118,6 @@ export default function QualityControl() {
       setError(e instanceof Error ? e.message : 'Create failed');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleRegenerateKey = async (opId: number) => {
-    try {
-      const op = await regenerateQCApiKey(opId);
-      if (op.api_key) {
-        setStoredKeys((k) => ({ ...k, [opId]: op.api_key! }));
-        setRevealedKey(opId);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed');
     }
   };
 
@@ -197,11 +179,6 @@ export default function QualityControl() {
   const handleDeleteOperation = async (opId: number) => {
     try {
       await deleteQCOperation(opId);
-      setStoredKeys((k) => {
-        const next = { ...k };
-        delete next[opId];
-        return next;
-      });
       if (selectedOpId === opId) setSelectedOpId(null);
       await loadOperations();
     } catch (e) {
@@ -210,10 +187,10 @@ export default function QualityControl() {
   };
 
   const handleTestRun = async () => {
-    if (!selectedOpId) return;
-    const key = storedKeys[selectedOpId];
+    if (!selectedOpId || !selectedOp) return;
+    const key = selectedOp.api_key;
     if (!key) {
-      setError('Regenerate API key first to get the key for testing.');
+      setError('No API key for this operation.');
       return;
     }
     let data: Record<string, unknown>[];
@@ -232,12 +209,6 @@ export default function QualityControl() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Run failed');
     }
-  };
-
-  const displayKey = (op: QCOperation) => {
-    const key = storedKeys[op.id];
-    if (key) return key;
-    return op.api_key ? op.api_key : '•••••••• (regenerate to see)';
   };
 
   return (
@@ -259,15 +230,13 @@ export default function QualityControl() {
             <h3 className={styles.cardTitle}>New operation</h3>
             {createdApiKey ? (
               <div>
-                <p className={styles.success}>Operation created. Copy your API key now — it won’t be shown again in full.</p>
+                <p className={styles.success}>Operation created. Your API key is shown below and in the operation details; you can copy it anytime.</p>
                 <div className={styles.apiKeyBox}>
                   <code className={styles.apiKey}>{createdApiKey}</code>
                   <button
                     type="button"
                     className={styles.smallButton}
-                    onClick={() => {
-                      navigator.clipboard.writeText(createdApiKey);
-                    }}
+                    onClick={() => navigator.clipboard.writeText(createdApiKey)}
                   >
                     Copy
                   </button>
@@ -322,19 +291,14 @@ export default function QualityControl() {
             <h2 className={styles.sectionTitle}>{selectedOp.name}</h2>
             <p className={styles.muted}>API key — use header <code>X-API-Key</code> when calling POST /api/quality/run</p>
             <div className={styles.apiKeyBox}>
-              <code className={styles.apiKey}>
-                {revealedKey === selectedOp.id || storedKeys[selectedOp.id] ? displayKey(selectedOp) : '••••••••••••'}
-              </code>
+              <code className={styles.apiKey}>{selectedOp.api_key ?? '—'}</code>
               <button
                 type="button"
                 className={styles.smallButton}
-                onClick={() => storedKeys[selectedOp.id] ? navigator.clipboard.writeText(storedKeys[selectedOp.id]) : undefined}
-                disabled={!storedKeys[selectedOp.id]}
+                onClick={() => selectedOp.api_key && navigator.clipboard.writeText(selectedOp.api_key)}
+                disabled={!selectedOp.api_key}
               >
                 Copy
-              </button>
-              <button type="button" className={styles.smallButton} onClick={() => handleRegenerateKey(selectedOp.id)}>
-                Regenerate key
               </button>
             </div>
           </section>

@@ -12,6 +12,8 @@ COPY statsmed/ statsmed/
 COPY web/ web/
 COPY backend/ backend/
 
+# Long timeout for large deps (e.g. casadi ~75MB); avoids Read timed out during build
+ENV PIP_DEFAULT_TIMEOUT=300
 RUN pip install --no-cache-dir -e ".[web]" && \
     pip install --no-cache-dir -r backend/requirements.txt
 

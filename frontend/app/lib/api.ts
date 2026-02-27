@@ -250,14 +250,6 @@ export async function updateQCOperation(operationId: number, name: string): Prom
   return res.json();
 }
 
-export async function regenerateQCApiKey(operationId: number): Promise<QCOperation> {
-  const res = await authFetch(`${getApiUrl()}/api/quality/operations/${operationId}/regenerate-key`, {
-    method: 'POST',
-  });
-  if (!res.ok) throw new Error('Failed to regenerate key');
-  return res.json();
-}
-
 export async function deleteQCOperation(operationId: number): Promise<void> {
   const res = await authFetch(`${getApiUrl()}/api/quality/operations/${operationId}`, {
     method: 'DELETE',
