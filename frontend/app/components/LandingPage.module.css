@@ -42,6 +42,22 @@
   border-left: 1px solid var(--border-color);
 }
 
+.publicQcLink {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  margin-left: 8px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.publicQcLink:hover {
+  color: var(--accent-green);
+  background: rgba(16, 185, 129, 0.1);
+}
+
 .navOptions {
   display: flex;
   align-items: center;
@@ -198,6 +214,26 @@
   color: var(--text-secondary);
   line-height: 1.7;
   margin-bottom: 48px;
+}
+
+.heroQcLink {
+  display: inline-block;
+  margin-top: 24px;
+  padding: 12px 28px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.heroQcLink:hover {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  box-shadow: var(--shadow-glow-green);
 }
 
 .footer {

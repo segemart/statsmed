@@ -78,6 +78,7 @@ class QualityControlOperation(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     api_key = Column(String(64), nullable=False, unique=True, index=True)
+    is_public = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -87,6 +88,12 @@ class QualityControlOperation(Base):
         back_populates="operation",
         cascade="all, delete-orphan",
         order_by="QualityControlFunction.sort_order",
+    )
+    runs = relationship(
+        "QualityControlRun",
+        back_populates="operation",
+        cascade="all, delete-orphan",
+        order_by="QualityControlRun.created_at.desc()",
     )
 
     __table_args__ = (UniqueConstraint("user_id", "name", name="uq_user_qc_operation_name"),)
@@ -111,3 +118,20 @@ class QualityControlFunction(Base):
 
     def __repr__(self):
         return f"<QualityControlFunction(id={self.id}, name='{self.name}', type='{self.function_type}')>"
+
+
+class QualityControlRun(Base):
+    """Persisted result of a single QC run (via API key). Linked to its operation."""
+    __tablename__ = "quality_control_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    operation_id = Column(Integer, ForeignKey("quality_control_operations.id", ondelete="CASCADE"), nullable=False)
+    success = Column(Boolean, nullable=False)
+    results_json = Column(Text, nullable=False)
+    row_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    operation = relationship("QualityControlOperation", back_populates="runs")
+
+    def __repr__(self):
+        return f"<QualityControlRun(id={self.id}, operation_id={self.operation_id}, success={self.success})>"

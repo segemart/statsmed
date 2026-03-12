@@ -200,6 +200,7 @@ export interface QCOperation {
   id: number;
   name: string;
   api_key?: string | null;
+  is_public: boolean;
   created_at: string;
 }
 
@@ -237,11 +238,14 @@ export async function getQCOperation(operationId: number): Promise<QCOperation> 
   return res.json();
 }
 
-export async function updateQCOperation(operationId: number, name: string): Promise<QCOperation> {
+export async function updateQCOperation(
+  operationId: number,
+  updates: { name?: string; is_public?: boolean }
+): Promise<QCOperation> {
   const res = await authFetch(`${getApiUrl()}/api/quality/operations/${operationId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(updates),
   });
   if (!res.ok) {
     const err = await res.json();
@@ -328,5 +332,56 @@ export async function runQualityControl(apiKey: string, data: Record<string, unk
     const err = await res.json();
     throw new Error(err.detail || 'Run failed');
   }
+  return res.json();
+}
+
+// ----- Public QC (no auth) -----
+
+export interface PublicQCRunResult {
+  name: string;
+  function_type: string;
+  passed: boolean;
+  message: string;
+}
+
+export interface PublicQCRun {
+  id: number;
+  success: boolean;
+  row_count: number;
+  results: PublicQCRunResult[];
+  created_at: string;
+}
+
+export interface PublicQCOperationSummary {
+  id: number;
+  name: string;
+  owner: string;
+  created_at: string;
+  function_count: number;
+  latest_run: {
+    id: number;
+    success: boolean;
+    row_count: number;
+    created_at: string;
+  } | null;
+}
+
+export interface PublicQCOperationDetail {
+  id: number;
+  name: string;
+  owner: string;
+  created_at: string;
+  latest_run: PublicQCRun | null;
+}
+
+export async function listPublicQCOperations(): Promise<PublicQCOperationSummary[]> {
+  const res = await fetch(`${getApiUrl()}/api/quality/public`);
+  if (!res.ok) throw new Error('Failed to list public operations');
+  return res.json();
+}
+
+export async function getPublicQCOperation(operationId: number): Promise<PublicQCOperationDetail> {
+  const res = await fetch(`${getApiUrl()}/api/quality/public/${operationId}`);
+  if (!res.ok) throw new Error('Operation not found or not public');
   return res.json();
 }

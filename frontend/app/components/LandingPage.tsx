@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { loginUser, registerUser } from '../lib/api';
 import styles from './LandingPage.module.css';
 
@@ -114,6 +115,7 @@ export default function LandingPage({ children, section = 'data-analysis', onSec
           <Image src={logoImg} alt="Statsmed" className={styles.logoIcon} width={36} height={36} priority />
           Statsmed
           <span className={styles.logoSubtitle}>Statistics for Medical Data</span>
+          <Link href="/qc" className={styles.publicQcLink}>Public QC</Link>
         </div>
 
         {isLoggedIn ? (
@@ -192,6 +194,9 @@ export default function LandingPage({ children, section = 'data-analysis', onSec
             <h1 className={styles.heroTitle}>
               Statistical analysis and quality control for medical data
             </h1>
+            <Link href="/qc" className={styles.heroQcLink}>
+              Browse public quality control panels &rarr;
+            </Link>
           </div>
           <footer className={styles.footer}>
             <p>© {new Date().getFullYear()} Statsmed</p>

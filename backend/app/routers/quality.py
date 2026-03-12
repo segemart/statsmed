@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from ..db.database import get_db
-from ..db.models import User, QualityControlOperation, QualityControlFunction
+from ..db.models import User, QualityControlOperation, QualityControlFunction, QualityControlRun
 from ..auth import get_current_user
 from ..services.quality_engine import run_quality_checks
 
@@ -24,10 +24,16 @@ class OperationCreate(BaseModel):
     name: str
 
 
+class OperationUpdate(BaseModel):
+    name: Optional[str] = None
+    is_public: Optional[bool] = None
+
+
 class OperationResponse(BaseModel):
     id: int
     name: str
-    api_key: Optional[str] = None  # only on create or when explicitly requested
+    api_key: Optional[str] = None
+    is_public: bool = False
     created_at: str
 
 
@@ -98,6 +104,17 @@ def create_operation(
         id=op.id,
         name=op.name,
         api_key=api_key,
+        is_public=op.is_public,
+        created_at=op.created_at.isoformat(),
+    )
+
+
+def _op_response(op: QualityControlOperation, include_key: bool = True) -> OperationResponse:
+    return OperationResponse(
+        id=op.id,
+        name=op.name,
+        api_key=op.api_key if include_key else None,
+        is_public=op.is_public,
         created_at=op.created_at.isoformat(),
     )
 
@@ -110,10 +127,7 @@ def list_operations(
     ops = db.query(QualityControlOperation).filter(
         QualityControlOperation.user_id == current_user.id,
     ).order_by(QualityControlOperation.name).all()
-    return [
-        OperationResponse(id=op.id, name=op.name, api_key=op.api_key, created_at=op.created_at.isoformat())
-        for op in ops
-    ]
+    return [_op_response(op) for op in ops]
 
 
 @router.get("/operations/{operation_id}", response_model=OperationResponse)
@@ -123,36 +137,34 @@ def get_operation(
     db: Session = Depends(get_db),
 ):
     op = ensure_user_owns_operation(db, current_user, operation_id)
-    return OperationResponse(
-        id=op.id,
-        name=op.name,
-        api_key=op.api_key,
-        created_at=op.created_at.isoformat(),
-    )
+    return _op_response(op)
 
 
 @router.patch("/operations/{operation_id}", response_model=OperationResponse)
 def update_operation(
     operation_id: int,
-    body: OperationCreate,
+    body: OperationUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     op = ensure_user_owns_operation(db, current_user, operation_id)
-    name = (body.name or "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Name is required")
-    if name != op.name:
-        existing = db.query(QualityControlOperation).filter(
-            QualityControlOperation.user_id == current_user.id,
-            QualityControlOperation.name == name,
-        ).first()
-        if existing:
-            raise HTTPException(status_code=409, detail="An operation with this name already exists")
-        op.name = name
+    if body.name is not None:
+        name = body.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Name is required")
+        if name != op.name:
+            existing = db.query(QualityControlOperation).filter(
+                QualityControlOperation.user_id == current_user.id,
+                QualityControlOperation.name == name,
+            ).first()
+            if existing:
+                raise HTTPException(status_code=409, detail="An operation with this name already exists")
+            op.name = name
+    if body.is_public is not None:
+        op.is_public = body.is_public
     db.commit()
     db.refresh(op)
-    return OperationResponse(id=op.id, name=op.name, api_key=op.api_key, created_at=op.created_at.isoformat())
+    return _op_response(op)
 
 
 @router.delete("/operations/{operation_id}")
@@ -316,9 +328,84 @@ def run_quality(
         function_specs.append((f.name, f.function_type, config or {}))
     results = run_quality_checks(data, function_specs)
     all_passed = all(r["passed"] for r in results)
+
+    run_record = QualityControlRun(
+        operation_id=operation.id,
+        success=all_passed,
+        results_json=json.dumps(results),
+        row_count=len(data),
+    )
+    db.add(run_record)
+    db.commit()
+
     return {
         "operation_id": operation.id,
         "operation_name": operation.name,
         "success": all_passed,
         "results": results,
+    }
+
+
+# ----- Public read-only endpoints (no auth) -----
+
+@router.get("/public")
+def list_public_operations(db: Session = Depends(get_db)):
+    """List all QC operations marked as public, with summary of their latest run."""
+    ops = (
+        db.query(QualityControlOperation)
+        .filter(QualityControlOperation.is_public == True)  # noqa: E712
+        .order_by(QualityControlOperation.name)
+        .all()
+    )
+    result = []
+    for op in ops:
+        latest_run = (
+            db.query(QualityControlRun)
+            .filter(QualityControlRun.operation_id == op.id)
+            .order_by(QualityControlRun.created_at.desc())
+            .first()
+        )
+        result.append({
+            "id": op.id,
+            "name": op.name,
+            "owner": op.user.username,
+            "created_at": op.created_at.isoformat(),
+            "function_count": len(op.functions),
+            "latest_run": {
+                "id": latest_run.id,
+                "success": latest_run.success,
+                "row_count": latest_run.row_count,
+                "created_at": latest_run.created_at.isoformat(),
+            } if latest_run else None,
+        })
+    return result
+
+
+@router.get("/public/{operation_id}")
+def get_public_operation(operation_id: int, db: Session = Depends(get_db)):
+    """Get a single public QC operation with only its latest run results (read-only)."""
+    op = db.query(QualityControlOperation).filter(
+        QualityControlOperation.id == operation_id,
+        QualityControlOperation.is_public == True,  # noqa: E712
+    ).first()
+    if not op:
+        raise HTTPException(status_code=404, detail="Operation not found or not public")
+    latest_run = (
+        db.query(QualityControlRun)
+        .filter(QualityControlRun.operation_id == op.id)
+        .order_by(QualityControlRun.created_at.desc())
+        .first()
+    )
+    return {
+        "id": op.id,
+        "name": op.name,
+        "owner": op.user.username,
+        "created_at": op.created_at.isoformat(),
+        "latest_run": {
+            "id": latest_run.id,
+            "success": latest_run.success,
+            "row_count": latest_run.row_count,
+            "results": json.loads(latest_run.results_json),
+            "created_at": latest_run.created_at.isoformat(),
+        } if latest_run else None,
     }

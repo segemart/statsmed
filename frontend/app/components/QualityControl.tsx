@@ -5,6 +5,7 @@ import {
   listQCOperations,
   createQCOperation,
   deleteQCOperation,
+  updateQCOperation,
   listQCFunctions,
   createQCFunction,
   deleteQCFunction,
@@ -186,6 +187,16 @@ export default function QualityControl() {
     }
   };
 
+  const handleTogglePublic = async () => {
+    if (!selectedOp) return;
+    try {
+      const updated = await updateQCOperation(selectedOp.id, { is_public: !selectedOp.is_public });
+      setOperations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update visibility');
+    }
+  };
+
   const handleTestRun = async () => {
     if (!selectedOpId || !selectedOp) return;
     const key = selectedOp.api_key;
@@ -300,6 +311,26 @@ export default function QualityControl() {
               >
                 Copy
               </button>
+            </div>
+
+            <div className={styles.toggleRow}>
+              <label className={styles.toggleLabel}>
+                <span className={styles.toggleText}>Public dashboard</span>
+                <button
+                  type="button"
+                  className={`${styles.toggleSwitch} ${selectedOp.is_public ? styles.toggleOn : ''}`}
+                  onClick={handleTogglePublic}
+                  role="switch"
+                  aria-checked={selectedOp.is_public}
+                >
+                  <span className={styles.toggleKnob} />
+                </button>
+              </label>
+              <span className={styles.muted} style={{ margin: 0, fontSize: '0.8rem' }}>
+                {selectedOp.is_public
+                  ? 'Anyone can view run results via the public QC page.'
+                  : 'Only you can see this operation.'}
+              </span>
             </div>
           </section>
 
