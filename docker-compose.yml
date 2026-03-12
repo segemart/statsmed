@@ -7,9 +7,9 @@ services:
     image: postgres:15-alpine
     container_name: statsmed_postgres
     environment:
-      POSTGRES_USER: statsmed
-      POSTGRES_PASSWORD: statsmed
-      POSTGRES_DB: statsmed
+      POSTGRES_USER: ${POSTGRES_USER:-statsmed}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-statsmed}
+      POSTGRES_DB: ${POSTGRES_DB:-statsmed}
     ports:
       - "5432:5432"
     volumes:
@@ -26,7 +26,7 @@ services:
       dockerfile: Dockerfile
     container_name: statsmed_backend
     environment:
-      DATABASE_URL: postgresql+psycopg://statsmed:statsmed@postgres:5432/statsmed
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-statsmed}:${POSTGRES_PASSWORD:-statsmed}@postgres:5432/${POSTGRES_DB:-statsmed}
       JWT_SECRET: ${JWT_SECRET:-statsmed-dev-secret-change-in-production}
     ports:
       - "8000:8000"
@@ -38,9 +38,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     container_name: statsmed_frontend
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     ports:
       - "3000:3000"
     depends_on:

@@ -17,3 +17,4 @@ __pycache__
 statsmed.egg-info
 .venv/
 web/tmp/
+.env

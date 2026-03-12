@@ -1,6 +1,6 @@
 # Statsmed New UI (Login, Register, PostgreSQL)
 
-This is the new user interface for statsmed, based on the CalmInvesting pattern: **Next.js** frontend, **FastAPI** backend, **PostgreSQL** for users and persisted data. Users can register and log in; all uploaded files and analysis results are saved per user.
+This is the new user interface for statsmed: **Next.js** frontend, **FastAPI** backend, **PostgreSQL** for users and persisted data. Users can register and log in; all uploaded files and analysis results are saved per user.
 
 ## Quick start with Docker
 

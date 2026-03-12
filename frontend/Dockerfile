@@ -1,5 +1,11 @@
 FROM node:20-alpine AS builder
 
+# Next.js bakes NEXT_PUBLIC_* into the bundle at build time
+ARG NEXT_PUBLIC_BASE_PATH
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
