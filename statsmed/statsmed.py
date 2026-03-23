@@ -688,6 +688,46 @@ def acc_sens(gt,x,N_of_decimals = 2,method = 'wilson',quiet = False):
     print('npv %.1f'%(npv*100))
 '''
 
+def acceptance_rate(x, N_of_decimals=2, method='wilson', quiet=False):
+    x = np.asarray(x)
+    
+    if np.any((x != 0) & (x != 1)):
+        raise ValueError("x must contain only 0 and 1")
+
+    n = len(x)
+    accepted = np.sum(x == 1)
+    rejected = np.sum(x == 0)
+
+    acc_rate = np.nan
+    acc_lc, acc_uc = np.nan, np.nan
+    rej_rate = np.nan
+    rej_lc, rej_uc = np.nan, np.nan
+
+    if n > 0:
+        acc_rate = accepted / n
+        rej_rate = rejected / n
+        acc_lc, acc_uc = proportion_confint(accepted, n, method=method)
+        rej_lc, rej_uc = proportion_confint(rejected, n, method=method)
+
+    if not quiet:
+        print(f'Total: {n}')
+        print(f'Accepted: {accepted}')
+        print(f'Rejected: {rejected}')
+        print(f'Acceptance rate: {acc_rate*100:.{N_of_decimals}f}% '
+              f'(CI: {acc_lc*100:.{N_of_decimals}f}% - {acc_uc*100:.{N_of_decimals}f}%)')
+        print(f'Rejection rate: {rej_rate*100:.{N_of_decimals}f}% '
+              f'(CI: {rej_lc*100:.{N_of_decimals}f}% - {rej_uc*100:.{N_of_decimals}f}%)')
+
+    return {
+        'n': n,
+        'accepted': accepted,
+        'rejected': rejected,
+        'acceptance_rate': round(acc_rate, N_of_decimals),
+        'rejection_rate': round(rej_rate, N_of_decimals),
+        'acceptance_rate_ci': (round(acc_lc, N_of_decimals), round(acc_uc, N_of_decimals)),
+        'rejection_rate_ci': (round(rej_lc, N_of_decimals), round(rej_uc, N_of_decimals)),
+    }
+
 def compare_proportions_dep(gt,x,y,N_of_decimals = 2,Np_of_decimals = 3,quiet = False):
     if np.sum(((gt != 1).astype(int) + (gt != 0).astype(int)) != 1) > 0:
         print('Ground truth is not indicated by ones and zeros')
