@@ -12,7 +12,7 @@ from statsmed.statsmed import (
     stdnorm_test, get_desc, corr_two_gr, corr_scatter_figure,
     comp_two_gr_continuous,
     bland_altman_plot, bland_altman_bias_and_limits,
-    acc_sens,
+    acc_sens, acceptance_rate,
     compare_proportions_dep, compare_proportions_ind_sens_precision,
     ROC_fig,
     multivariate_linear_lasso, multivariate_logistic_lasso,
@@ -120,6 +120,31 @@ def run_acc_sens(df, params):
     x = sub[params["x"]].values.astype(float)
     text = _nan_note(n_before, len(sub)) + _capture(acc_sens, gt, x)
     return text, None
+
+
+def run_acceptance_rate(df, params):
+    col = df[params["x"]]
+    n_before = len(col)
+    sub = col.dropna()
+    x = sub.values.astype(float)
+    nd = int(params.get("N_of_decimals", 2))
+    method = params.get("method", "wilson")
+    try:
+        res = acceptance_rate(x, N_of_decimals=nd, method=method, quiet=True)
+    except Exception as e:
+        return _nan_note(n_before, len(sub)) + f"Error: {e}", None
+    acc_ci = res["acceptance_rate_ci"]
+    rej_ci = res["rejection_rate_ci"]
+    lines = [
+        f"Total: {res['n']}",
+        f"Accepted: {res['accepted']}",
+        f"Rejected: {res['rejected']}",
+        f"Acceptance rate: {res['acceptance_rate'] * 100:.{nd}f}% "
+        f"(CI: {acc_ci[0] * 100:.{nd}f}% - {acc_ci[1] * 100:.{nd}f}%)",
+        f"Rejection rate: {res['rejection_rate'] * 100:.{nd}f}% "
+        f"(CI: {rej_ci[0] * 100:.{nd}f}% - {rej_ci[1] * 100:.{nd}f}%)",
+    ]
+    return _nan_note(n_before, len(sub)) + "\n".join(lines), None
 
 
 def run_roc(df, params):
@@ -322,6 +347,22 @@ TESTS = {
             {"name": "x", "label": "Predictions (0/1)", "type": "column"},
         ],
         "run": run_acc_sens,
+    },
+    "acceptance_rate": {
+        "label": "Acceptance rate",
+        "description": "Proportion of 1s (accepted) with confidence interval for binary column.",
+        "inputs": [
+            {"name": "x", "label": "Binary column (0/1)", "type": "column"},
+            {"name": "N_of_decimals", "label": "Decimal places", "type": "number", "default": 2},
+            {"name": "method", "label": "CI method", "type": "select", "options": [
+                {"value": "wilson", "label": "Wilson"},
+                {"value": "normal", "label": "Normal"},
+                {"value": "agresti_coull", "label": "Agresti–Coull"},
+                {"value": "beta", "label": "Beta"},
+                {"value": "jeffreys", "label": "Jeffreys"},
+            ], "default": "wilson"},
+        ],
+        "run": run_acceptance_rate,
     },
     "roc": {
         "label": "ROC Curve & AUC",
