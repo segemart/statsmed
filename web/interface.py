@@ -8,7 +8,6 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from statsmed.qc_graphics import acceptance_rejection_horizontal_bar
 from statsmed.statsmed import (
     stdnorm_test, get_desc, corr_two_gr, corr_scatter_figure,
     comp_two_gr_continuous,
@@ -145,9 +144,7 @@ def run_acceptance_rate(df, params):
         f"Rejection rate: {res['rejection_rate'] * 100:.{nd}f}% "
         f"(CI: {rej_ci[0] * 100:.{nd}f}% - {rej_ci[1] * 100:.{nd}f}%)",
     ]
-    fig, ax = plt.subplots(figsize=(8, 2.4))
-    acceptance_rejection_horizontal_bar(ax, int(res["accepted"]), int(res["rejected"]))
-    return _nan_note(n_before, len(sub)) + "\n".join(lines), _fig_to_base64()
+    return _nan_note(n_before, len(sub)) + "\n".join(lines), None
 
 
 def run_roc(df, params):

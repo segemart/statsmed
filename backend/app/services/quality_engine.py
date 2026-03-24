@@ -1,9 +1,16 @@
 """
 Quality control run engine: execute a list of functions on incoming data.
 Each function has a type (missing, range, statsmed_test, ...) and config; returns pass/fail and message.
+
+Runners return (passed, message) or (passed, message, figure_base64) when a figure is produced.
 """
+import io
+import base64
 from typing import Any
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import pandas as pd
 
 from .run_analysis import run_test_with_df
@@ -77,11 +84,63 @@ def run_statsmed_test(rows: list[dict], config: dict) -> tuple[bool, str]:
         return False, str(e)
 
 
+def _fig_to_base64() -> str:
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", bbox_inches="tight", dpi=100)
+    plt.close("all")
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode("utf-8")
+
+
+def run_acceptance_bar(rows: list[dict], config: dict) -> tuple[bool, str, str]:
+    """Horizontal acceptance/rejection bar chart for a binary column. config: { column }."""
+    from statsmed.qc_graphics import acceptance_rejection_horizontal_bar
+
+    column = config.get("column")
+    if not column:
+        return False, "No column specified", ""
+    if not rows:
+        return False, "No data rows", ""
+
+    values = []
+    for row in rows:
+        v = row.get(column)
+        if v is not None:
+            try:
+                values.append(float(v))
+            except (TypeError, ValueError):
+                pass
+
+    if not values:
+        return False, f"No numeric values found in '{column}'", ""
+
+    accepted = sum(1 for v in values if v == 1)
+    rejected = sum(1 for v in values if v == 0)
+    n = accepted + rejected
+    if n == 0:
+        return False, f"No 0/1 values in '{column}'", ""
+
+    acc_pct = 100 * accepted / n
+    rej_pct = 100 * rejected / n
+    message = (
+        f"Total: {n}\n"
+        f"Accepted: {accepted} ({acc_pct:.1f}%)\n"
+        f"Rejected: {rejected} ({rej_pct:.1f}%)"
+    )
+
+    fig, ax = plt.subplots(figsize=(8, 2.4))
+    acceptance_rejection_horizontal_bar(ax, accepted, rejected)
+    figure_b64 = _fig_to_base64()
+
+    return True, message, figure_b64
+
+
 FUNCTION_RUNNERS = {
     "missing": run_missing,
     "range": run_range,
     "custom": run_custom,
     "statsmed_test": run_statsmed_test,
+    "acceptance_bar": run_acceptance_bar,
 }
 
 
@@ -92,16 +151,21 @@ def run_quality_checks(
     """
     Run a list of quality control functions on the data.
     functions: list of (name, function_type, config_dict)
-    Returns list of { "name", "function_type", "passed", "message" }.
+    Returns list of { "name", "function_type", "passed", "message", optional "figure" }.
     """
     results = []
     for name, func_type, config in functions:
         runner = FUNCTION_RUNNERS.get(func_type, run_custom)
-        passed, message = runner(data, config or {})
-        results.append({
+        outcome = runner(data, config or {})
+        passed, message = outcome[0], outcome[1]
+        figure = outcome[2] if len(outcome) > 2 else None
+        entry: dict[str, Any] = {
             "name": name,
             "function_type": func_type,
             "passed": passed,
             "message": message,
-        })
+        }
+        if figure:
+            entry["figure"] = figure
+        results.append(entry)
     return results

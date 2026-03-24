@@ -319,7 +319,7 @@ export async function runQualityControl(apiKey: string, data: Record<string, unk
   operation_id: number;
   operation_name: string;
   success: boolean;
-  results: { name: string; function_type: string; passed: boolean; message: string }[];
+  results: { name: string; function_type: string; passed: boolean; message: string; figure?: string }[];
 }> {
   const res = await fetch(`${getApiUrl()}/api/quality/run`, {
     method: 'POST',

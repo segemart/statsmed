@@ -21,6 +21,7 @@ const FUNCTION_TYPES = [
   { value: 'statsmed_test', label: 'Statsmed test', configHint: 'Select test and map columns' },
   { value: 'missing', label: 'Check missing values', configHint: 'columns: array of column names' },
   { value: 'range', label: 'Check range', configHint: 'column, min, max' },
+  { value: 'acceptance_bar', label: 'Acceptance/Rejection bar', configHint: 'column (binary 0/1)' },
   { value: 'custom', label: 'Custom (placeholder)', configHint: '-' },
 ];
 
@@ -41,7 +42,7 @@ export default function QualityControl() {
   const [addFnTestId, setAddFnTestId] = useState('');
   const [addFnParams, setAddFnParams] = useState<Record<string, unknown>>({});
   const [testDataJson, setTestDataJson] = useState('[{"a":1,"b":2},{"a":null,"b":3}]');
-  const [testResult, setTestResult] = useState<{ success: boolean; results: { name: string; passed: boolean; message: string }[] } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; results: { name: string; passed: boolean; message: string; figure?: string }[] } | null>(null);
 
   const loadOperations = useCallback(async () => {
     try {
@@ -439,6 +440,17 @@ export default function QualityControl() {
                       </>
                     )}
                   </>
+                ) : addFnType === 'acceptance_bar' ? (
+                  <>
+                    <label className={styles.label}>Binary column (0/1) — the column in your data that holds accepted (1) / rejected (0)</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={addFnConfig === '{}' ? '' : (() => { try { return JSON.parse(addFnConfig).column || ''; } catch { return ''; } })()}
+                      onChange={(e) => setAddFnConfig(JSON.stringify({ column: e.target.value }))}
+                      placeholder="e.g. accepted"
+                    />
+                  </>
                 ) : (
                   <>
                     <label className={styles.label}>Config (JSON) — e.g. missing: {`{"columns": ["col1", "col2"]}`}, range: {`{"column": "x", "min": 0, "max": 100}`}</label>
@@ -513,6 +525,13 @@ export default function QualityControl() {
                       </span>{' '}
                       <strong>{r.name}</strong>
                       <pre className={styles.resultMessage}>{r.message}</pre>
+                      {r.figure && (
+                        <img
+                          className={styles.resultFigure}
+                          src={`data:image/png;base64,${r.figure}`}
+                          alt={r.name}
+                        />
+                      )}
                     </li>
                   ))}
                 </ul>
