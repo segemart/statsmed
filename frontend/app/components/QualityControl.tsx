@@ -505,9 +505,15 @@ export default function QualityControl() {
                 <p className={testResult.success ? styles.passed : styles.failed}>
                   {testResult.success ? 'All checks passed' : 'Some checks failed'}
                 </p>
-                <ul>
+                <ul className={styles.testResultList}>
                   {testResult.results.map((r, i) => (
-                    <li key={i}><strong>{r.name}</strong>: {r.passed ? '✓' : '✗'} {r.message}</li>
+                    <li key={i} className={styles.testResultItem}>
+                      <span className={r.passed ? styles.passed : styles.failed}>
+                        {r.passed ? '✓' : '✗'}
+                      </span>{' '}
+                      <strong>{r.name}</strong>
+                      <pre className={styles.resultMessage}>{r.message}</pre>
+                    </li>
                   ))}
                 </ul>
               </div>

@@ -69,14 +69,16 @@ export default function PublicQCDetailPage() {
                 <ul className={styles.resultList}>
                   {run.results.map((r, i) => (
                     <li key={i} className={styles.resultItem}>
-                      <span
-                        className={styles.resultIcon}
-                        style={{ color: r.passed ? 'var(--accent-green)' : 'var(--accent-red)' }}
-                      >
-                        {r.passed ? '\u2713' : '\u2717'}
-                      </span>
-                      <span className={styles.resultName}>{r.name}</span>
-                      <span>{r.message}</span>
+                      <div className={styles.resultItemHeader}>
+                        <span
+                          className={styles.resultIcon}
+                          style={{ color: r.passed ? 'var(--accent-green)' : 'var(--accent-red)' }}
+                        >
+                          {r.passed ? '\u2713' : '\u2717'}
+                        </span>
+                        <span className={styles.resultName}>{r.name}</span>
+                      </div>
+                      <pre className={styles.resultMessage}>{r.message}</pre>
                     </li>
                   ))}
                 </ul>

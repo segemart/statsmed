@@ -275,11 +275,33 @@
   background: var(--bg-primary);
 }
 
-.testResult ul {
-  margin: 8px 0 0;
-  padding-left: 20px;
-  color: var(--text-secondary);
+.testResultList {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.testResultItem {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
   font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.testResultItem:last-child {
+  border-bottom: none;
+}
+
+.resultMessage {
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: 6px;
 }
 
 .passed {

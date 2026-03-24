@@ -262,9 +262,9 @@
 
 .resultItem {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 6px 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
   font-size: 0.85rem;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-light);
@@ -274,15 +274,32 @@
   border-bottom: none;
 }
 
+.resultItemHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .resultIcon {
   flex-shrink: 0;
   font-size: 0.9rem;
-  margin-top: 1px;
 }
 
 .resultName {
   font-weight: 500;
   color: var(--text-primary);
+}
+
+.resultMessage {
+  margin: 0;
+  padding: 10px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: 6px;
 }
 
 @media (max-width: 768px) {
