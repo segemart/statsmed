@@ -201,6 +201,7 @@ export interface QCOperation {
   name: string;
   api_key?: string | null;
   is_public: boolean;
+  last_sample_json?: string | null;
   created_at: string;
 }
 

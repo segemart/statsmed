@@ -66,9 +66,16 @@ export default function QualityControl() {
   }, [loadOperations]);
 
   useEffect(() => {
-    if (selectedOpId) loadFunctions(selectedOpId);
-    else setFunctions([]);
-  }, [selectedOpId, loadFunctions]);
+    if (selectedOpId) {
+      loadFunctions(selectedOpId);
+      const op = operations.find((o) => o.id === selectedOpId);
+      if (op?.last_sample_json) {
+        setTestDataJson(op.last_sample_json);
+      }
+    } else {
+      setFunctions([]);
+    }
+  }, [selectedOpId, loadFunctions, operations]);
 
   useEffect(() => {
     if (addFnOpen && addFnType === 'statsmed_test') {
@@ -217,6 +224,7 @@ export default function QualityControl() {
     try {
       const result = await runQualityControl(key, data);
       setTestResult({ success: result.success, results: result.results });
+      await loadOperations();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Run failed');
     }

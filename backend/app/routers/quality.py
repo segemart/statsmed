@@ -34,6 +34,7 @@ class OperationResponse(BaseModel):
     name: str
     api_key: Optional[str] = None
     is_public: bool = False
+    last_sample_json: Optional[str] = None
     created_at: str
 
 
@@ -105,6 +106,7 @@ def create_operation(
         name=op.name,
         api_key=api_key,
         is_public=op.is_public,
+        last_sample_json=op.last_sample_json,
         created_at=op.created_at.isoformat(),
     )
 
@@ -115,6 +117,7 @@ def _op_response(op: QualityControlOperation, include_key: bool = True) -> Opera
         name=op.name,
         api_key=op.api_key if include_key else None,
         is_public=op.is_public,
+        last_sample_json=op.last_sample_json,
         created_at=op.created_at.isoformat(),
     )
 
@@ -328,6 +331,9 @@ def run_quality(
         function_specs.append((f.name, f.function_type, config or {}))
     results = run_quality_checks(data, function_specs)
     all_passed = all(r["passed"] for r in results)
+
+    MAX_SAMPLE_ROWS = 100
+    operation.last_sample_json = json.dumps(data[:MAX_SAMPLE_ROWS])
 
     run_record = QualityControlRun(
         operation_id=operation.id,

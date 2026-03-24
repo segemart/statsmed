@@ -30,6 +30,7 @@ def _run_migrations():
     insp = inspect(engine)
     migrations = [
         ("quality_control_operations", "is_public", "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("quality_control_operations", "last_sample_json", "TEXT"),
     ]
     with engine.begin() as conn:
         for table, column, col_def in migrations:

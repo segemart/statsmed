@@ -79,6 +79,7 @@ class QualityControlOperation(Base):
     name = Column(String(255), nullable=False)
     api_key = Column(String(64), nullable=False, unique=True, index=True)
     is_public = Column(Boolean, nullable=False, default=False)
+    last_sample_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
