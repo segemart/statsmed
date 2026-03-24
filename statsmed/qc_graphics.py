@@ -16,38 +16,27 @@ def acceptance_rejection_horizontal_bar(
     *,
     color_accepted: str = "#2e7d32",
     color_rejected: str = "#c62828",
-    bar_height: float = 0.45,
+    bar_height: float = 0.6,
     y_center: float = 0.0,
 ) -> None:
     """
-    Draw a single horizontal stacked bar from 0 to 1: accepted (green) then rejected (red).
+    Draw a single horizontal stacked bar: accepted (green) then rejected (red).
 
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Target axes.
-    accepted, rejected : int
-        Counts of 1s and 0s; proportions are accepted / (accepted + rejected), etc.
-    color_accepted, color_rejected : str
-        Fill colors for the two segments.
-    bar_height : float
-        Vertical thickness of the bar in data coordinates.
-    y_center : float
-        Vertical center of the bar on the y-axis.
+    Labels with count and percentage are rendered inside each segment.
+    No axes, ticks, spines or legend — clean appearance matching statsmed style.
     """
     n = int(accepted) + int(rejected)
     ax.set_facecolor("white")
+
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
     if n <= 0:
         ax.set_xlim(0, 1)
         ax.set_ylim(-0.5, 0.5)
-        ax.text(0.5, 0.0, "No data", ha="center", va="center", fontsize=11, color="0.35")
-        ax.set_yticks([])
-        ax.set_xticks([0, 0.5, 1])
-        ax.set_xticklabels(["0%", "50%", "100%"])
-        ax.set_xlabel("Share")
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.spines["left"].set_visible(False)
+        ax.text(0.5, 0.0, "No data", ha="center", va="center", fontsize=14, color="0.4")
         return
 
     acc_frac = accepted / n
@@ -59,7 +48,6 @@ def acceptance_rejection_horizontal_bar(
         left=0.0,
         height=bar_height,
         color=color_accepted,
-        label="Accepted",
         edgecolor="white",
         linewidth=0.8,
     )
@@ -69,44 +57,34 @@ def acceptance_rejection_horizontal_bar(
         left=acc_frac,
         height=bar_height,
         color=color_rejected,
-        label="Rejected",
         edgecolor="white",
         linewidth=0.8,
     )
 
     ax.set_xlim(0, 1)
     ax.set_ylim(y_center - 0.5, y_center + 0.5)
-    ax.set_yticks([])
-    ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
-    ax.set_xticklabels(["0%", "25%", "50%", "75%", "100%"])
-    ax.set_xlabel("Share")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=False, fontsize=9)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_visible(False)
 
-    # Optional percentage labels inside segments when wide enough
-    if acc_frac >= 0.12:
+    if acc_frac >= 0.10:
         ax.text(
             acc_frac / 2,
             y_center,
-            f"{100 * acc_frac:.1f}%",
+            f"Accepted: {accepted} ({100 * acc_frac:.1f}%)",
             ha="center",
             va="center",
             color="white",
-            fontsize=10,
+            fontsize=12,
             fontweight="bold",
         )
-    if rej_frac >= 0.12:
+    if rej_frac >= 0.10:
         ax.text(
             acc_frac + rej_frac / 2,
             y_center,
-            f"{100 * rej_frac:.1f}%",
+            f"Rejected: {rejected} ({100 * rej_frac:.1f}%)",
             ha="center",
             va="center",
             color="white",
-            fontsize=10,
+            fontsize=12,
             fontweight="bold",
         )
 
-    ax.set_title(f"n = {n}  (accepted: {accepted}, rejected: {rejected})", fontsize=12, pad=8)
+    ax.set_title(f"n = {n}", fontsize=14, pad=8)

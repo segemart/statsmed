@@ -343,6 +343,7 @@ export interface PublicQCRunResult {
   function_type: string;
   passed: boolean;
   message: string;
+  figure?: string;
 }
 
 export interface PublicQCRun {

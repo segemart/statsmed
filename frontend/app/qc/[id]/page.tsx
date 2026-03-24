@@ -79,6 +79,13 @@ export default function PublicQCDetailPage() {
                         <span className={styles.resultName}>{r.name}</span>
                       </div>
                       <pre className={styles.resultMessage}>{r.message}</pre>
+                      {r.figure && (
+                        <img
+                          className={styles.resultFigure}
+                          src={`data:image/png;base64,${r.figure}`}
+                          alt={r.name}
+                        />
+                      )}
                     </li>
                   ))}
                 </ul>
