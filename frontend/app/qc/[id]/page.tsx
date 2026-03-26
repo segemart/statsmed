@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getPublicQCOperation, type PublicQCOperationDetail } from '../../lib/api';
+import AcceptanceBar from '../../components/AcceptanceBar';
 import styles from '../PublicQC.module.css';
 import logoImg from '../../../Icon/NewIcon.png';
 
@@ -79,7 +80,10 @@ export default function PublicQCDetailPage() {
                         <span className={styles.resultName}>{r.name}</span>
                       </div>
                       <pre className={styles.resultMessage}>{r.message}</pre>
-                      {r.figure && (
+                      {r.chart_data?.type === 'acceptance_bar' && (
+                        <AcceptanceBar data={r.chart_data} />
+                      )}
+                      {r.figure && !r.chart_data && (
                         <img
                           className={styles.resultFigure}
                           src={`data:image/png;base64,${r.figure}`}

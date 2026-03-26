@@ -315,11 +315,22 @@ export async function deleteQCFunction(operationId: number, functionId: number):
   if (!res.ok) throw new Error('Failed to delete function');
 }
 
+export interface AcceptanceBarChartData {
+  type: 'acceptance_bar';
+  accepted: number;
+  rejected: number;
+  total: number;
+  accepted_pct: number;
+  rejected_pct: number;
+}
+
+export type ChartData = AcceptanceBarChartData;
+
 export async function runQualityControl(apiKey: string, data: Record<string, unknown>[]): Promise<{
   operation_id: number;
   operation_name: string;
   success: boolean;
-  results: { name: string; function_type: string; passed: boolean; message: string; figure?: string }[];
+  results: { name: string; function_type: string; passed: boolean; message: string; figure?: string; chart_data?: ChartData }[];
 }> {
   const res = await fetch(`${getApiUrl()}/api/quality/run`, {
     method: 'POST',
@@ -344,6 +355,7 @@ export interface PublicQCRunResult {
   passed: boolean;
   message: string;
   figure?: string;
+  chart_data?: ChartData;
 }
 
 export interface PublicQCRun {

@@ -14,7 +14,8 @@ import {
   type QCOperation,
   type QCFunction,
 } from '../lib/api';
-import type { TestSchema } from '../lib/api';
+import type { TestSchema, ChartData } from '../lib/api';
+import AcceptanceBar from './AcceptanceBar';
 import styles from './QualityControl.module.css';
 
 const FUNCTION_TYPES = [
@@ -42,7 +43,7 @@ export default function QualityControl() {
   const [addFnTestId, setAddFnTestId] = useState('');
   const [addFnParams, setAddFnParams] = useState<Record<string, unknown>>({});
   const [testDataJson, setTestDataJson] = useState('[{"a":1,"b":2},{"a":null,"b":3}]');
-  const [testResult, setTestResult] = useState<{ success: boolean; results: { name: string; passed: boolean; message: string; figure?: string }[] } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; results: { name: string; passed: boolean; message: string; figure?: string; chart_data?: ChartData }[] } | null>(null);
 
   const loadOperations = useCallback(async () => {
     try {
@@ -525,7 +526,10 @@ export default function QualityControl() {
                       </span>{' '}
                       <strong>{r.name}</strong>
                       <pre className={styles.resultMessage}>{r.message}</pre>
-                      {r.figure && (
+                      {r.chart_data?.type === 'acceptance_bar' && (
+                        <AcceptanceBar data={r.chart_data} />
+                      )}
+                      {r.figure && !r.chart_data && (
                         <img
                           className={styles.resultFigure}
                           src={`data:image/png;base64,${r.figure}`}

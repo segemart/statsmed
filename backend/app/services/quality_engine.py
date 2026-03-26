@@ -92,15 +92,13 @@ def _fig_to_base64() -> str:
     return base64.b64encode(buf.read()).decode("utf-8")
 
 
-def run_acceptance_bar(rows: list[dict], config: dict) -> tuple[bool, str, str]:
-    """Horizontal acceptance/rejection bar chart for a binary column. config: { column }."""
-    from statsmed.qc_graphics import acceptance_rejection_horizontal_bar
-
+def run_acceptance_bar(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
+    """Acceptance/rejection bar for a binary column. Returns structured chart_data for frontend CSS rendering."""
     column = config.get("column")
     if not column:
-        return False, "No column specified", ""
+        return False, "No column specified", {}
     if not rows:
-        return False, "No data rows", ""
+        return False, "No data rows", {}
 
     values = []
     for row in rows:
@@ -112,13 +110,13 @@ def run_acceptance_bar(rows: list[dict], config: dict) -> tuple[bool, str, str]:
                 pass
 
     if not values:
-        return False, f"No numeric values found in '{column}'", ""
+        return False, f"No numeric values found in '{column}'", {}
 
     accepted = sum(1 for v in values if v == 1)
     rejected = sum(1 for v in values if v == 0)
     n = accepted + rejected
     if n == 0:
-        return False, f"No 0/1 values in '{column}'", ""
+        return False, f"No 0/1 values in '{column}'", {}
 
     acc_pct = 100 * accepted / n
     rej_pct = 100 * rejected / n
@@ -128,11 +126,16 @@ def run_acceptance_bar(rows: list[dict], config: dict) -> tuple[bool, str, str]:
         f"Rejected: {rejected} ({rej_pct:.1f}%)"
     )
 
-    fig, ax = plt.subplots(figsize=(8, 2.4))
-    acceptance_rejection_horizontal_bar(ax, accepted, rejected)
-    figure_b64 = _fig_to_base64()
+    chart_data = {
+        "type": "acceptance_bar",
+        "accepted": accepted,
+        "rejected": rejected,
+        "total": n,
+        "accepted_pct": round(acc_pct, 1),
+        "rejected_pct": round(rej_pct, 1),
+    }
 
-    return True, message, figure_b64
+    return True, message, chart_data
 
 
 FUNCTION_RUNNERS = {
@@ -158,14 +161,16 @@ def run_quality_checks(
         runner = FUNCTION_RUNNERS.get(func_type, run_custom)
         outcome = runner(data, config or {})
         passed, message = outcome[0], outcome[1]
-        figure = outcome[2] if len(outcome) > 2 else None
+        extra = outcome[2] if len(outcome) > 2 else None
         entry: dict[str, Any] = {
             "name": name,
             "function_type": func_type,
             "passed": passed,
             "message": message,
         }
-        if figure:
-            entry["figure"] = figure
+        if isinstance(extra, str) and extra:
+            entry["figure"] = extra
+        elif isinstance(extra, dict) and extra:
+            entry["chart_data"] = extra
         results.append(entry)
     return results
