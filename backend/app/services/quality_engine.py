@@ -177,9 +177,13 @@ def compute_laney_p_chart(
 
     try:
         result = _statsmed_laney_p_chart(x_arr, n_arr, k=k, clip_limits=clip_limits, quiet=True, baseline="prospective")
+        ooc_indices = [i for i in range(len(x_arr)) if result["out_of_control"][i]]
         print(f"[Laney p'] prospective: {len(x_arr)} points, "
               f"pbar={result['pbar']:.4f}, sigma_z={result['sigma_z']:.4f}, "
-              f"OOC={result['n_out_of_control']}")
+              f"OOC={result['n_out_of_control']} at indices {ooc_indices}")
+        for idx in ooc_indices:
+            print(f"  OOC #{idx}: date={history_points[idx]['date']}, "
+                  f"p={result['p'][idx]:.4f}, lcl={result['lcl'][idx]:.4f}, ucl={result['ucl'][idx]:.4f}")
     except TypeError:
         print(f"[Laney p'] WARNING: baseline param not supported — old statsmed installed?")
         result = _statsmed_laney_p_chart(x_arr, n_arr, k=k, clip_limits=clip_limits, quiet=True)
@@ -209,8 +213,8 @@ def compute_laney_p_chart(
         pts.append({
             "date": pt["date"],
             "p": round(float(result["p"][i]), 4),
-            "lcl": round(float(lcl_val), 4) if has_limits else None,
-            "ucl": round(float(ucl_val), 4) if has_limits else None,
+            "lcl": round(float(lcl_val), 4) if has_limits else 0.0,
+            "ucl": round(float(ucl_val), 4) if has_limits else 1.0,
             "n": int(n_arr[i]),
             "out_of_control": bool(result["out_of_control"][i]),
             "run_id": pt["run_id"],
