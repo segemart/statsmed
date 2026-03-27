@@ -14,9 +14,10 @@ import {
   type QCOperation,
   type QCFunction,
 } from '../lib/api';
-import type { TestSchema, ChartData, AcceptanceHistoryChartData } from '../lib/api';
+import type { TestSchema, ChartData, AcceptanceHistoryChartData, LaneyPChartData } from '../lib/api';
 import AcceptanceBar from './AcceptanceBar';
 import AcceptanceChart from './AcceptanceChart';
+import LaneyPChart from './LaneyPChart';
 import styles from './QualityControl.module.css';
 
 const FUNCTION_TYPES = [
@@ -25,6 +26,7 @@ const FUNCTION_TYPES = [
   { value: 'range', label: 'Check range', configHint: 'column, min, max' },
   { value: 'acceptance_bar', label: 'Acceptance/Rejection bar', configHint: 'column (binary 0/1)' },
   { value: 'acceptance_history', label: 'Acceptance rate over time', configHint: 'No config needed — shows history chart from past runs' },
+  { value: 'laney_p_chart', label: "Laney p\u2032 chart", configHint: 'k (sigma multiplier, default 3) — requires Acceptance/Rejection bar in same operation' },
   { value: 'custom', label: 'Custom (placeholder)', configHint: '-' },
 ];
 
@@ -447,6 +449,22 @@ export default function QualityControl() {
                   <p className={styles.muted}>
                     No configuration needed. This module displays a line chart of acceptance rate over time, built from past runs that include an Acceptance/Rejection bar.
                   </p>
+                ) : addFnType === 'laney_p_chart' ? (
+                  <>
+                    <p className={styles.muted}>
+                      Laney p&prime; control chart with overdispersion correction. Requires an Acceptance/Rejection bar function in the same operation. Data is collected from past runs.
+                    </p>
+                    <label className={styles.label}>k (sigma multiplier, default 3)</label>
+                    <input
+                      type="number"
+                      className={styles.input}
+                      step="0.5"
+                      min="1"
+                      max="5"
+                      value={addFnConfig === '{}' ? '3' : (() => { try { return JSON.parse(addFnConfig).k || '3'; } catch { return '3'; } })()}
+                      onChange={(e) => setAddFnConfig(JSON.stringify({ k: Number(e.target.value) || 3 }))}
+                    />
+                  </>
                 ) : addFnType === 'acceptance_bar' ? (
                   <>
                     <label className={styles.label}>Binary column (0/1) — the column in your data that holds accepted (1) / rejected (0)</label>
@@ -537,6 +555,14 @@ export default function QualityControl() {
                       )}
                       {r.chart_data?.type === 'acceptance_history' && (r.chart_data as AcceptanceHistoryChartData).points.length > 1 && (
                         <AcceptanceChart points={(r.chart_data as AcceptanceHistoryChartData).points} />
+                      )}
+                      {r.chart_data?.type === 'laney_p_chart' && (r.chart_data as LaneyPChartData).points.length >= 2 && (
+                        <LaneyPChart
+                          points={(r.chart_data as LaneyPChartData).points}
+                          pbar={(r.chart_data as LaneyPChartData).pbar}
+                          sigma_z={(r.chart_data as LaneyPChartData).sigma_z}
+                          k={(r.chart_data as LaneyPChartData).k}
+                        />
                       )}
                       {r.figure && !r.chart_data && (
                         <img

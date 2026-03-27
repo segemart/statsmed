@@ -329,7 +329,25 @@ export interface AcceptanceHistoryChartData {
   points: AcceptanceHistoryPoint[];
 }
 
-export type ChartData = AcceptanceBarChartData | AcceptanceHistoryChartData;
+export interface LaneyPChartPoint {
+  date: string;
+  p: number;
+  lcl: number;
+  ucl: number;
+  n: number;
+  out_of_control: boolean;
+  run_id: number;
+}
+
+export interface LaneyPChartData {
+  type: 'laney_p_chart';
+  pbar: number;
+  sigma_z: number;
+  k: number;
+  points: LaneyPChartPoint[];
+}
+
+export type ChartData = AcceptanceBarChartData | AcceptanceHistoryChartData | LaneyPChartData;
 
 export async function runQualityControl(apiKey: string, data: Record<string, unknown>[]): Promise<{
   operation_id: number;

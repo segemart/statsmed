@@ -8,9 +8,11 @@ import {
   getPublicQCOperation,
   type PublicQCOperationDetail,
   type AcceptanceHistoryChartData,
+  type LaneyPChartData,
 } from '../../lib/api';
 import AcceptanceBar from '../../components/AcceptanceBar';
 import AcceptanceChart from '../../components/AcceptanceChart';
+import LaneyPChart from '../../components/LaneyPChart';
 import styles from '../PublicQC.module.css';
 import logoImg from '../../../Icon/NewIcon.png';
 
@@ -90,6 +92,14 @@ export default function PublicQCDetailPage() {
                       )}
                       {r.chart_data?.type === 'acceptance_history' && (r.chart_data as AcceptanceHistoryChartData).points.length > 1 && (
                         <AcceptanceChart points={(r.chart_data as AcceptanceHistoryChartData).points} />
+                      )}
+                      {r.chart_data?.type === 'laney_p_chart' && (r.chart_data as LaneyPChartData).points.length >= 2 && (
+                        <LaneyPChart
+                          points={(r.chart_data as LaneyPChartData).points}
+                          pbar={(r.chart_data as LaneyPChartData).pbar}
+                          sigma_z={(r.chart_data as LaneyPChartData).sigma_z}
+                          k={(r.chart_data as LaneyPChartData).k}
+                        />
                       )}
                       {r.figure && !r.chart_data && (
                         <img

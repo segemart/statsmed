@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from ..db.database import get_db
 from ..db.models import User, QualityControlOperation, QualityControlFunction, QualityControlRun
 from ..auth import get_current_user
-from ..services.quality_engine import run_quality_checks
+from ..services.quality_engine import run_quality_checks, compute_laney_p_chart
 
 router = APIRouter(prefix="/api/quality", tags=["quality"])
 
@@ -345,6 +345,54 @@ def _enrich_acceptance_history(results: list[dict], db: Session, operation_id: i
     return results
 
 
+def _build_laney_p_history(db: Session, operation_id: int) -> list[dict]:
+    """Collect accepted/total data points from past runs for Laney p' computation."""
+    cutoff = datetime.utcnow() - timedelta(days=365)
+    runs = (
+        db.query(QualityControlRun)
+        .filter(
+            QualityControlRun.operation_id == operation_id,
+            QualityControlRun.created_at >= cutoff,
+        )
+        .order_by(QualityControlRun.created_at.asc())
+        .all()
+    )
+    points: list[dict] = []
+    for run in runs:
+        try:
+            results = json.loads(run.results_json)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for r in results:
+            cd = r.get("chart_data")
+            if cd and cd.get("type") == "acceptance_bar":
+                points.append({
+                    "date": run.created_at.isoformat(),
+                    "accepted": cd.get("accepted", 0),
+                    "total": cd.get("total", 0),
+                    "run_id": run.id,
+                })
+                break
+    return points
+
+
+def _enrich_laney_p_chart(results: list[dict], db: Session, operation_id: int) -> list[dict]:
+    """If any result has type laney_p_chart, compute and inject the actual chart data."""
+    needs_laney = any(
+        r.get("chart_data", {}).get("type") == "laney_p_chart"
+        for r in results
+    )
+    if not needs_laney:
+        return results
+    history = _build_laney_p_history(db, operation_id)
+    for r in results:
+        cd = r.get("chart_data", {})
+        if cd.get("type") == "laney_p_chart":
+            k = cd.get("k", 3.0)
+            r["chart_data"] = compute_laney_p_chart(history, k=k)
+    return results
+
+
 # ----- Run (API key auth) -----
 
 def get_operation_by_api_key(
@@ -395,6 +443,7 @@ def run_quality(
     db.commit()
 
     results = _enrich_acceptance_history(results, db, operation.id)
+    results = _enrich_laney_p_chart(results, db, operation.id)
 
     return {
         "operation_id": operation.id,
@@ -457,6 +506,7 @@ def get_public_operation(operation_id: int, db: Session = Depends(get_db)):
     latest_results = json.loads(latest_run.results_json) if latest_run else []
     if latest_run:
         latest_results = _enrich_acceptance_history(latest_results, db, op.id)
+        latest_results = _enrich_laney_p_chart(latest_results, db, op.id)
 
     return {
         "id": op.id,

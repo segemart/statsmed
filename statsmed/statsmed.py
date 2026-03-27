@@ -1991,5 +1991,105 @@ def quick_overdispersion_check_poisson(fit):
         return np.nan
 
 
+def laney_p_chart(
+    x,
+    n,
+    k=3.0,
+    clip_limits=True,
+    quiet=False,
+):
+    """Laney p' chart for subgrouped binomial data.
 
+    Adjusts standard p-chart control limits by the overdispersion factor
+    sigma_z, estimated from the average moving range of the standardised
+    residuals (z-scores).  This avoids false out-of-control signals that
+    a classical p-chart produces when the between-subgroup variation exceeds
+    what the binomial model predicts.
 
+    Parameters
+    ----------
+    x : array-like
+        Number of successes (e.g. accepted) per subgroup.
+    n : array-like
+        Subgroup sizes (must be > 0).
+    k : float, default 3.0
+        Sigma multiplier for the control limits.
+    clip_limits : bool, default True
+        Clip control limits to [0, 1].
+    quiet : bool, default False
+        Suppress printed output.
+
+    Returns
+    -------
+    dict with keys:
+        pbar        : float   – overall weighted proportion (center line)
+        sigma_z     : float   – Laney overdispersion factor
+        k           : float   – sigma multiplier used
+        n_points    : int     – number of subgroups
+        n_out_of_control : int
+        p           : ndarray – observed proportion per subgroup
+        se          : ndarray – binomial standard error per subgroup
+        z           : ndarray – standardised residuals
+        mr_z        : ndarray – moving range of z (first element NaN)
+        lcl         : ndarray – lower control limit per subgroup
+        ucl         : ndarray – upper control limit per subgroup
+        out_of_control : ndarray[bool]
+    """
+    x = np.asarray(x, dtype=float)
+    n = np.asarray(n, dtype=float)
+
+    if x.shape != n.shape:
+        raise ValueError("x and n must have the same shape.")
+    if np.any(n <= 0):
+        raise ValueError("All subgroup sizes n must be > 0.")
+    if np.any(x < 0) or np.any(x > n):
+        raise ValueError("x must satisfy 0 <= x <= n for every subgroup.")
+
+    p = x / n
+    pbar = float(x.sum() / n.sum())
+
+    if np.isclose(pbar, 0.0) or np.isclose(pbar, 1.0):
+        raise ValueError(
+            "Laney p' is not meaningful when overall pbar is 0 or 1."
+        )
+
+    se = np.sqrt(pbar * (1.0 - pbar) / n)
+    z = (p - pbar) / se
+
+    mr_z = np.full_like(z, fill_value=np.nan)
+    mr_z[1:] = np.abs(np.diff(z))
+
+    mr_bar = float(np.nanmean(mr_z))
+    sigma_z = mr_bar / 1.128  # d2 for moving-range span of 2
+
+    delta = k * sigma_z * se
+    ucl = pbar + delta
+    lcl = pbar - delta
+
+    if clip_limits:
+        ucl = np.clip(ucl, 0.0, 1.0)
+        lcl = np.clip(lcl, 0.0, 1.0)
+
+    out_of_control = (p > ucl) | (p < lcl)
+
+    if not quiet:
+        print(f"Laney p' chart  (k = {k})")
+        print(f"  pbar    = {pbar:.4f}")
+        print(f"  sigma_z = {sigma_z:.4f}")
+        print(f"  Points  = {len(p)}")
+        print(f"  OOC     = {int(out_of_control.sum())}")
+
+    return {
+        "pbar": pbar,
+        "sigma_z": sigma_z,
+        "k": k,
+        "n_points": int(len(p)),
+        "n_out_of_control": int(out_of_control.sum()),
+        "p": p,
+        "se": se,
+        "z": z,
+        "mr_z": mr_z,
+        "lcl": lcl,
+        "ucl": ucl,
+        "out_of_control": out_of_control,
+    }

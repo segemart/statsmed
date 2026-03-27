@@ -8,12 +8,14 @@ import io
 import base64
 from typing import Any
 
+import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
 from .run_analysis import run_test_with_df
+from statsmed.statsmed import laney_p_chart as _statsmed_laney_p_chart
 
 
 def run_missing(rows: list[dict], config: dict) -> tuple[bool, str]:
@@ -143,6 +145,77 @@ def run_acceptance_history(rows: list[dict], config: dict) -> tuple[bool, str, d
     return True, "Acceptance history chart", {"type": "acceptance_history", "points": []}
 
 
+def run_laney_p_chart(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
+    """Placeholder runner; actual Laney p' chart data is injected by the router from historical runs."""
+    k = config.get("k", 3.0)
+    return True, "Laney p\u2032 chart", {"type": "laney_p_chart", "pbar": 0, "sigma_z": 0, "k": k, "points": []}
+
+
+def compute_laney_p_chart(
+    history_points: list[dict],
+    k: float = 3.0,
+    clip_limits: bool = True,
+) -> dict:
+    """
+    Compute Laney p' chart from historical acceptance data.
+
+    Delegates the statistical computation to statsmed.statsmed.laney_p_chart
+    and formats the result as structured chart_data for the frontend.
+
+    history_points: list of dicts with keys: date, accepted, total, run_id.
+    """
+    empty = {"type": "laney_p_chart", "pbar": 0, "sigma_z": 0, "k": k, "points": []}
+
+    if len(history_points) < 2:
+        return empty
+
+    x_arr = np.array([pt["accepted"] for pt in history_points], dtype=float)
+    n_arr = np.array([pt["total"] for pt in history_points], dtype=float)
+
+    if np.any(n_arr <= 0):
+        return empty
+
+    try:
+        result = _statsmed_laney_p_chart(x_arr, n_arr, k=k, clip_limits=clip_limits, quiet=True)
+    except ValueError:
+        p = x_arr / n_arr
+        pbar = float(x_arr.sum() / n_arr.sum())
+        pts = [
+            {
+                "date": pt["date"],
+                "p": round(float(p[i]), 4),
+                "lcl": 0.0,
+                "ucl": 1.0,
+                "n": int(n_arr[i]),
+                "out_of_control": False,
+                "run_id": pt["run_id"],
+            }
+            for i, pt in enumerate(history_points)
+        ]
+        return {"type": "laney_p_chart", "pbar": round(pbar, 4), "sigma_z": 0, "k": k, "points": pts}
+
+    pts = [
+        {
+            "date": pt["date"],
+            "p": round(float(result["p"][i]), 4),
+            "lcl": round(float(result["lcl"][i]), 4),
+            "ucl": round(float(result["ucl"][i]), 4),
+            "n": int(n_arr[i]),
+            "out_of_control": bool(result["out_of_control"][i]),
+            "run_id": pt["run_id"],
+        }
+        for i, pt in enumerate(history_points)
+    ]
+
+    return {
+        "type": "laney_p_chart",
+        "pbar": round(result["pbar"], 4),
+        "sigma_z": round(result["sigma_z"], 4),
+        "k": result["k"],
+        "points": pts,
+    }
+
+
 FUNCTION_RUNNERS = {
     "missing": run_missing,
     "range": run_range,
@@ -150,6 +223,7 @@ FUNCTION_RUNNERS = {
     "statsmed_test": run_statsmed_test,
     "acceptance_bar": run_acceptance_bar,
     "acceptance_history": run_acceptance_history,
+    "laney_p_chart": run_laney_p_chart,
 }
 
 
