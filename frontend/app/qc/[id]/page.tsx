@@ -6,9 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   getPublicQCOperation,
-  getAcceptanceHistory,
   type PublicQCOperationDetail,
-  type AcceptanceHistoryPoint,
+  type AcceptanceHistoryChartData,
 } from '../../lib/api';
 import AcceptanceBar from '../../components/AcceptanceBar';
 import AcceptanceChart from '../../components/AcceptanceChart';
@@ -19,20 +18,13 @@ export default function PublicQCDetailPage() {
   const params = useParams();
   const operationId = Number(params.id);
   const [operation, setOperation] = useState<PublicQCOperationDetail | null>(null);
-  const [historyPoints, setHistoryPoints] = useState<AcceptanceHistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!operationId) return;
-    Promise.all([
-      getPublicQCOperation(operationId),
-      getAcceptanceHistory(operationId).catch(() => ({ points: [] as AcceptanceHistoryPoint[] })),
-    ])
-      .then(([op, hist]) => {
-        setOperation(op);
-        setHistoryPoints(hist.points);
-      })
+    getPublicQCOperation(operationId)
+      .then(setOperation)
       .catch(() => setError('Operation not found or not public.'))
       .finally(() => setLoading(false));
   }, [operationId]);
@@ -96,6 +88,9 @@ export default function PublicQCDetailPage() {
                       {r.chart_data?.type === 'acceptance_bar' && (
                         <AcceptanceBar data={r.chart_data} />
                       )}
+                      {r.chart_data?.type === 'acceptance_history' && (r.chart_data as AcceptanceHistoryChartData).points.length > 1 && (
+                        <AcceptanceChart points={(r.chart_data as AcceptanceHistoryChartData).points} />
+                      )}
                       {r.figure && !r.chart_data && (
                         <img
                           className={styles.resultFigure}
@@ -110,12 +105,6 @@ export default function PublicQCDetailPage() {
             ) : (
               <section className={styles.section}>
                 <p className={styles.muted}>No results available yet.</p>
-              </section>
-            )}
-
-            {historyPoints.length > 1 && (
-              <section className={styles.section}>
-                <AcceptanceChart points={historyPoints} />
               </section>
             )}
           </>

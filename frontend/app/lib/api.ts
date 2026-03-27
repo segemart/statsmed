@@ -324,7 +324,12 @@ export interface AcceptanceBarChartData {
   rejected_pct: number;
 }
 
-export type ChartData = AcceptanceBarChartData;
+export interface AcceptanceHistoryChartData {
+  type: 'acceptance_history';
+  points: AcceptanceHistoryPoint[];
+}
+
+export type ChartData = AcceptanceBarChartData | AcceptanceHistoryChartData;
 
 export async function runQualityControl(apiKey: string, data: Record<string, unknown>[]): Promise<{
   operation_id: number;
@@ -400,7 +405,7 @@ export async function getPublicQCOperation(operationId: number): Promise<PublicQ
   return res.json();
 }
 
-// ----- Acceptance history -----
+// ----- Acceptance history point (used by AcceptanceHistoryChartData) -----
 
 export interface AcceptanceHistoryPoint {
   date: string;
@@ -408,15 +413,4 @@ export interface AcceptanceHistoryPoint {
   rejected_pct: number;
   total: number;
   run_id: number;
-}
-
-export interface AcceptanceHistoryResponse {
-  operation_id: number;
-  points: AcceptanceHistoryPoint[];
-}
-
-export async function getAcceptanceHistory(operationId: number): Promise<AcceptanceHistoryResponse> {
-  const res = await fetch(`${getApiUrl()}/api/quality/public/${operationId}/history`);
-  if (!res.ok) throw new Error('Failed to load acceptance history');
-  return res.json();
 }

@@ -296,6 +296,55 @@ def delete_function(
     return {"success": True}
 
 
+# ----- Helpers -----
+
+def _build_acceptance_history(db: Session, operation_id: int) -> list[dict]:
+    """Collect acceptance-rate data points from past runs (up to 1 year)."""
+    cutoff = datetime.utcnow() - timedelta(days=365)
+    runs = (
+        db.query(QualityControlRun)
+        .filter(
+            QualityControlRun.operation_id == operation_id,
+            QualityControlRun.created_at >= cutoff,
+        )
+        .order_by(QualityControlRun.created_at.asc())
+        .all()
+    )
+    points: list[dict] = []
+    for run in runs:
+        try:
+            results = json.loads(run.results_json)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for r in results:
+            cd = r.get("chart_data")
+            if cd and cd.get("type") == "acceptance_bar":
+                points.append({
+                    "date": run.created_at.isoformat(),
+                    "accepted_pct": cd.get("accepted_pct", 0),
+                    "rejected_pct": cd.get("rejected_pct", 0),
+                    "total": cd.get("total", 0),
+                    "run_id": run.id,
+                })
+                break
+    return points
+
+
+def _enrich_acceptance_history(results: list[dict], db: Session, operation_id: int) -> list[dict]:
+    """If any result has type acceptance_history, inject the actual history points."""
+    needs_history = any(
+        r.get("chart_data", {}).get("type") == "acceptance_history"
+        for r in results
+    )
+    if not needs_history:
+        return results
+    points = _build_acceptance_history(db, operation_id)
+    for r in results:
+        if r.get("chart_data", {}).get("type") == "acceptance_history":
+            r["chart_data"]["points"] = points
+    return results
+
+
 # ----- Run (API key auth) -----
 
 def get_operation_by_api_key(
@@ -344,6 +393,8 @@ def run_quality(
     )
     db.add(run_record)
     db.commit()
+
+    results = _enrich_acceptance_history(results, db, operation.id)
 
     return {
         "operation_id": operation.id,
@@ -403,6 +454,10 @@ def get_public_operation(operation_id: int, db: Session = Depends(get_db)):
         .order_by(QualityControlRun.created_at.desc())
         .first()
     )
+    latest_results = json.loads(latest_run.results_json) if latest_run else []
+    if latest_run:
+        latest_results = _enrich_acceptance_history(latest_results, db, op.id)
+
     return {
         "id": op.id,
         "name": op.name,
@@ -412,49 +467,7 @@ def get_public_operation(operation_id: int, db: Session = Depends(get_db)):
             "id": latest_run.id,
             "success": latest_run.success,
             "row_count": latest_run.row_count,
-            "results": json.loads(latest_run.results_json),
+            "results": latest_results,
             "created_at": latest_run.created_at.isoformat(),
         } if latest_run else None,
     }
-
-
-@router.get("/public/{operation_id}/history")
-def get_public_operation_history(operation_id: int, db: Session = Depends(get_db)):
-    """Return acceptance-rate time series for a public operation (up to 1 year back)."""
-    op = db.query(QualityControlOperation).filter(
-        QualityControlOperation.id == operation_id,
-        QualityControlOperation.is_public == True,  # noqa: E712
-    ).first()
-    if not op:
-        raise HTTPException(status_code=404, detail="Operation not found or not public")
-
-    cutoff = datetime.utcnow() - timedelta(days=365)
-    runs = (
-        db.query(QualityControlRun)
-        .filter(
-            QualityControlRun.operation_id == op.id,
-            QualityControlRun.created_at >= cutoff,
-        )
-        .order_by(QualityControlRun.created_at.asc())
-        .all()
-    )
-
-    points: list[dict] = []
-    for run in runs:
-        try:
-            results = json.loads(run.results_json)
-        except (json.JSONDecodeError, TypeError):
-            continue
-        for r in results:
-            cd = r.get("chart_data")
-            if cd and cd.get("type") == "acceptance_bar":
-                points.append({
-                    "date": run.created_at.isoformat(),
-                    "accepted_pct": cd.get("accepted_pct", 0),
-                    "rejected_pct": cd.get("rejected_pct", 0),
-                    "total": cd.get("total", 0),
-                    "run_id": run.id,
-                })
-                break
-
-    return {"operation_id": op.id, "points": points}

@@ -138,12 +138,18 @@ def run_acceptance_bar(rows: list[dict], config: dict) -> tuple[bool, str, dict]
     return True, message, chart_data
 
 
+def run_acceptance_history(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
+    """Placeholder runner; actual history data is injected by the router after the run is saved."""
+    return True, "Acceptance history chart", {"type": "acceptance_history", "points": []}
+
+
 FUNCTION_RUNNERS = {
     "missing": run_missing,
     "range": run_range,
     "custom": run_custom,
     "statsmed_test": run_statsmed_test,
     "acceptance_bar": run_acceptance_bar,
+    "acceptance_history": run_acceptance_history,
 }
 
 

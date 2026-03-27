@@ -14,8 +14,9 @@ import {
   type QCOperation,
   type QCFunction,
 } from '../lib/api';
-import type { TestSchema, ChartData } from '../lib/api';
+import type { TestSchema, ChartData, AcceptanceHistoryChartData } from '../lib/api';
 import AcceptanceBar from './AcceptanceBar';
+import AcceptanceChart from './AcceptanceChart';
 import styles from './QualityControl.module.css';
 
 const FUNCTION_TYPES = [
@@ -23,6 +24,7 @@ const FUNCTION_TYPES = [
   { value: 'missing', label: 'Check missing values', configHint: 'columns: array of column names' },
   { value: 'range', label: 'Check range', configHint: 'column, min, max' },
   { value: 'acceptance_bar', label: 'Acceptance/Rejection bar', configHint: 'column (binary 0/1)' },
+  { value: 'acceptance_history', label: 'Acceptance rate over time', configHint: 'No config needed — shows history chart from past runs' },
   { value: 'custom', label: 'Custom (placeholder)', configHint: '-' },
 ];
 
@@ -441,6 +443,10 @@ export default function QualityControl() {
                       </>
                     )}
                   </>
+                ) : addFnType === 'acceptance_history' ? (
+                  <p className={styles.muted}>
+                    No configuration needed. This module displays a line chart of acceptance rate over time, built from past runs that include an Acceptance/Rejection bar.
+                  </p>
                 ) : addFnType === 'acceptance_bar' ? (
                   <>
                     <label className={styles.label}>Binary column (0/1) — the column in your data that holds accepted (1) / rejected (0)</label>
@@ -528,6 +534,9 @@ export default function QualityControl() {
                       <pre className={styles.resultMessage}>{r.message}</pre>
                       {r.chart_data?.type === 'acceptance_bar' && (
                         <AcceptanceBar data={r.chart_data} />
+                      )}
+                      {r.chart_data?.type === 'acceptance_history' && (r.chart_data as AcceptanceHistoryChartData).points.length > 1 && (
+                        <AcceptanceChart points={(r.chart_data as AcceptanceHistoryChartData).points} />
                       )}
                       {r.figure && !r.chart_data && (
                         <img
