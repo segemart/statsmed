@@ -177,7 +177,16 @@ def compute_laney_p_chart(
 
     try:
         result = _statsmed_laney_p_chart(x_arr, n_arr, k=k, clip_limits=clip_limits, quiet=True, baseline="prior")
-    except ValueError:
+        baseline_n = len(x_arr) - 1 if len(x_arr) >= 3 else len(x_arr)
+        print(f"[Laney p'] Phase II: {len(x_arr)} points, baseline={baseline_n}, "
+              f"pbar={result['pbar']:.4f}, sigma_z={result['sigma_z']:.4f}, "
+              f"OOC={result['n_out_of_control']}")
+    except TypeError:
+        print(f"[Laney p'] WARNING: baseline param not supported — old statsmed installed?")
+        result = _statsmed_laney_p_chart(x_arr, n_arr, k=k, clip_limits=clip_limits, quiet=True)
+        baseline_n = len(x_arr)
+    except ValueError as exc:
+        print(f"[Laney p'] ValueError: {exc}")
         p = x_arr / n_arr
         pbar = float(x_arr.sum() / n_arr.sum())
         pts = [
@@ -212,6 +221,7 @@ def compute_laney_p_chart(
         "pbar": round(result["pbar"], 4),
         "sigma_z": round(result["sigma_z"], 4),
         "k": result["k"],
+        "baseline_n": baseline_n,
         "points": pts,
     }
 
