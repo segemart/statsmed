@@ -2081,30 +2081,20 @@ def laney_p_chart(
         ucl = np.full(m, np.nan)
         lcl = np.full(m, np.nan)
         ooc = np.zeros(m, dtype=bool)
-        in_control = np.ones(m, dtype=bool)
         pbar_final = float(x[:-1].sum() / n[:-1].sum())
         sigma_z_final = 1.0
 
         MIN_BASELINE = 2
         for i in range(MIN_BASELINE, m):
-            mask = in_control[:i]
-            if mask.sum() < MIN_BASELINE:
-                continue
-            x_bl = x[:i][mask]
-            n_bl = n[:i][mask]
-            bl = _laney_baseline(x_bl, n_bl, k, n[i:i+1], clip_limits)
+            bl = _laney_baseline(x[:i], n[:i], k, n[i:i+1], clip_limits)
             if bl is None:
                 continue
             ucl[i] = bl["ucl"][0]
             lcl[i] = bl["lcl"][0]
             ooc[i] = (p[i] > ucl[i]) or (p[i] < lcl[i])
-            if ooc[i]:
-                in_control[i] = False
-            if i == m - 1:
-                pbar_final = bl["pbar"]
-                sigma_z_final = bl["sigma_z"]
+            pbar_final = bl["pbar"]
+            sigma_z_final = bl["sigma_z"]
 
-        n_baseline = int(in_control[:-1].sum())
         se = np.sqrt(pbar_final * (1.0 - pbar_final) / n) if not np.isclose(pbar_final, 0.0) and not np.isclose(pbar_final, 1.0) else np.zeros(m)
         z = (p - pbar_final) / np.where(se > 0, se, 1.0)
         mr_z = np.full(m, np.nan)
@@ -2112,7 +2102,7 @@ def laney_p_chart(
 
         if not quiet:
             print(f"Laney p' chart  (k = {k}, baseline = prospective)")
-            print(f"  pbar    = {pbar_final:.4f}  (from {n_baseline} in-control baseline pts)")
+            print(f"  pbar    = {pbar_final:.4f}  (from {m - 1} baseline pts)")
             print(f"  sigma_z = {sigma_z_final:.4f}")
             print(f"  Points  = {m}")
             print(f"  OOC     = {int(ooc.sum())}")
