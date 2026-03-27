@@ -119,7 +119,7 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
       }
     }
 
-    return { xScale, yScale, linePath, uclPath, lclPath, indBandPath, centerY, xTicks, yTicks };
+    return { xScale, yScale, linePath, uclPath, lclPath, uclIndPath, lclIndPath, centerY, xTicks, yTicks };
   }, [points, pbar, innerW, innerH]);
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
