@@ -110,7 +110,8 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current || points.length === 0) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const mx = e.clientX - rect.left - margin.left;
+    const svgX = (e.clientX - rect.left) * (width / rect.width);
+    const mx = svgX - margin.left;
     const times = points.map((pt) => new Date(pt.date).getTime());
     const minT = Math.min(...times);
     const maxT = Math.max(...times);

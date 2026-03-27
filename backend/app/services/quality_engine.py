@@ -176,7 +176,7 @@ def compute_laney_p_chart(
         return empty
 
     try:
-        result = _statsmed_laney_p_chart(x_arr, n_arr, k=k, clip_limits=clip_limits, quiet=True)
+        result = _statsmed_laney_p_chart(x_arr, n_arr, k=k, clip_limits=clip_limits, quiet=True, baseline="prior")
     except ValueError:
         p = x_arr / n_arr
         pbar = float(x_arr.sum() / n_arr.sum())

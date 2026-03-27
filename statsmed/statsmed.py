@@ -1997,6 +1997,7 @@ def laney_p_chart(
     k=3.0,
     clip_limits=True,
     quiet=False,
+    baseline="prior",
 ):
     """Laney p' chart for subgrouped binomial data.
 
@@ -2018,6 +2019,13 @@ def laney_p_chart(
         Clip control limits to [0, 1].
     quiet : bool, default False
         Suppress printed output.
+    baseline : str, default "prior"
+        How to compute the baseline parameters (pbar, sigma_z):
+        - "prior": Phase II monitoring — use all points except the last to
+          establish pbar and sigma_z, then apply those limits to every point
+          including the latest.  Prevents the newest observation from
+          inflating its own limits.  Falls back to "all" when < 3 points.
+        - "all": Phase I — use every point (classic retrospective analysis).
 
     Returns
     -------
@@ -2046,21 +2054,34 @@ def laney_p_chart(
         raise ValueError("x must satisfy 0 <= x <= n for every subgroup.")
 
     p = x / n
-    pbar = float(x.sum() / n.sum())
+
+    use_prior = baseline == "prior" and len(x) >= 3
+    if use_prior:
+        x_base, n_base = x[:-1], n[:-1]
+    else:
+        x_base, n_base = x, n
+
+    pbar = float(x_base.sum() / n_base.sum())
 
     if np.isclose(pbar, 0.0) or np.isclose(pbar, 1.0):
         raise ValueError(
             "Laney p' is not meaningful when overall pbar is 0 or 1."
         )
 
+    se_base = np.sqrt(pbar * (1.0 - pbar) / n_base)
+    z_base = (x_base / n_base - pbar) / se_base
+
+    mr_z_base = np.abs(np.diff(z_base))
+    if len(mr_z_base) == 0:
+        sigma_z = 1.0
+    else:
+        sigma_z = float(np.mean(mr_z_base)) / 1.128  # d2 for span of 2
+
     se = np.sqrt(pbar * (1.0 - pbar) / n)
     z = (p - pbar) / se
 
     mr_z = np.full_like(z, fill_value=np.nan)
     mr_z[1:] = np.abs(np.diff(z))
-
-    mr_bar = float(np.nanmean(mr_z))
-    sigma_z = mr_bar / 1.128  # d2 for moving-range span of 2
 
     delta = k * sigma_z * se
     ucl = pbar + delta
@@ -2073,10 +2094,10 @@ def laney_p_chart(
     out_of_control = (p > ucl) | (p < lcl)
 
     if not quiet:
-        print(f"Laney p' chart  (k = {k})")
+        print(f"Laney p' chart  (k = {k}, baseline = {baseline})")
         print(f"  pbar    = {pbar:.4f}")
         print(f"  sigma_z = {sigma_z:.4f}")
-        print(f"  Points  = {len(p)}")
+        print(f"  Points  = {len(p)}  (baseline: {len(x_base)})")
         print(f"  OOC     = {int(out_of_control.sum())}")
 
     return {
