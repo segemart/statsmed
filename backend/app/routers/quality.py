@@ -4,6 +4,7 @@ CRUD requires auth; POST /run uses API key in header.
 """
 import json
 import secrets
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
@@ -415,3 +416,45 @@ def get_public_operation(operation_id: int, db: Session = Depends(get_db)):
             "created_at": latest_run.created_at.isoformat(),
         } if latest_run else None,
     }
+
+
+@router.get("/public/{operation_id}/history")
+def get_public_operation_history(operation_id: int, db: Session = Depends(get_db)):
+    """Return acceptance-rate time series for a public operation (up to 1 year back)."""
+    op = db.query(QualityControlOperation).filter(
+        QualityControlOperation.id == operation_id,
+        QualityControlOperation.is_public == True,  # noqa: E712
+    ).first()
+    if not op:
+        raise HTTPException(status_code=404, detail="Operation not found or not public")
+
+    cutoff = datetime.utcnow() - timedelta(days=365)
+    runs = (
+        db.query(QualityControlRun)
+        .filter(
+            QualityControlRun.operation_id == op.id,
+            QualityControlRun.created_at >= cutoff,
+        )
+        .order_by(QualityControlRun.created_at.asc())
+        .all()
+    )
+
+    points: list[dict] = []
+    for run in runs:
+        try:
+            results = json.loads(run.results_json)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for r in results:
+            cd = r.get("chart_data")
+            if cd and cd.get("type") == "acceptance_bar":
+                points.append({
+                    "date": run.created_at.isoformat(),
+                    "accepted_pct": cd.get("accepted_pct", 0),
+                    "rejected_pct": cd.get("rejected_pct", 0),
+                    "total": cd.get("total", 0),
+                    "run_id": run.id,
+                })
+                break
+
+    return {"operation_id": op.id, "points": points}

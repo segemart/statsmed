@@ -399,3 +399,24 @@ export async function getPublicQCOperation(operationId: number): Promise<PublicQ
   if (!res.ok) throw new Error('Operation not found or not public');
   return res.json();
 }
+
+// ----- Acceptance history -----
+
+export interface AcceptanceHistoryPoint {
+  date: string;
+  accepted_pct: number;
+  rejected_pct: number;
+  total: number;
+  run_id: number;
+}
+
+export interface AcceptanceHistoryResponse {
+  operation_id: number;
+  points: AcceptanceHistoryPoint[];
+}
+
+export async function getAcceptanceHistory(operationId: number): Promise<AcceptanceHistoryResponse> {
+  const res = await fetch(`${getApiUrl()}/api/quality/public/${operationId}/history`);
+  if (!res.ok) throw new Error('Failed to load acceptance history');
+  return res.json();
+}

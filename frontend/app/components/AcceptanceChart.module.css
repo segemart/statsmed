@@ -1,0 +1,150 @@
+.wrapper {
+  margin-top: 24px;
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.empty {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 32px 0;
+}
+
+.chartContainer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 7 / 3;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Grid */
+
+.gridLine {
+  stroke: var(--border-color);
+  stroke-width: 0.5;
+  stroke-dasharray: 4 3;
+}
+
+/* Axis labels */
+
+.yLabel {
+  fill: var(--text-muted);
+  font-size: 11px;
+  text-anchor: end;
+  dominant-baseline: middle;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.xLabel {
+  fill: var(--text-muted);
+  font-size: 10px;
+  text-anchor: middle;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Area fill under the line */
+
+.area {
+  fill: rgba(16, 185, 129, 0.08);
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.areaVisible {
+  opacity: 1;
+}
+
+/* Line */
+
+.line {
+  fill: none;
+  stroke: rgba(16, 185, 129, 0.85);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 2000;
+  stroke-dashoffset: 2000;
+  transition: stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lineVisible {
+  stroke-dashoffset: 0;
+}
+
+/* Data dots */
+
+.dot {
+  fill: rgba(16, 185, 129, 0.85);
+  stroke: var(--bg-card);
+  stroke-width: 2;
+  opacity: 0;
+  transition: opacity 0.6s ease 0.8s;
+}
+
+.dotVisible {
+  opacity: 1;
+}
+
+/* Tooltip crosshair */
+
+.crosshair {
+  stroke: var(--text-muted);
+  stroke-width: 0.5;
+  stroke-dasharray: 3 2;
+  pointer-events: none;
+}
+
+.tooltipDot {
+  fill: rgba(16, 185, 129, 1);
+  stroke: var(--bg-card);
+  stroke-width: 3;
+  pointer-events: none;
+}
+
+/* Tooltip card */
+
+.tooltipCard {
+  position: absolute;
+  transform: translate(-50%, -130%);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.tooltipDate {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.tooltipValue {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tooltipAccepted {
+  color: rgba(16, 185, 129, 1);
+}
+
+.tooltipMeta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}

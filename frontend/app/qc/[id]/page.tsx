@@ -4,8 +4,14 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getPublicQCOperation, type PublicQCOperationDetail } from '../../lib/api';
+import {
+  getPublicQCOperation,
+  getAcceptanceHistory,
+  type PublicQCOperationDetail,
+  type AcceptanceHistoryPoint,
+} from '../../lib/api';
 import AcceptanceBar from '../../components/AcceptanceBar';
+import AcceptanceChart from '../../components/AcceptanceChart';
 import styles from '../PublicQC.module.css';
 import logoImg from '../../../Icon/NewIcon.png';
 
@@ -13,13 +19,20 @@ export default function PublicQCDetailPage() {
   const params = useParams();
   const operationId = Number(params.id);
   const [operation, setOperation] = useState<PublicQCOperationDetail | null>(null);
+  const [historyPoints, setHistoryPoints] = useState<AcceptanceHistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!operationId) return;
-    getPublicQCOperation(operationId)
-      .then(setOperation)
+    Promise.all([
+      getPublicQCOperation(operationId),
+      getAcceptanceHistory(operationId).catch(() => ({ points: [] as AcceptanceHistoryPoint[] })),
+    ])
+      .then(([op, hist]) => {
+        setOperation(op);
+        setHistoryPoints(hist.points);
+      })
       .catch(() => setError('Operation not found or not public.'))
       .finally(() => setLoading(false));
   }, [operationId]);
@@ -97,6 +110,12 @@ export default function PublicQCDetailPage() {
             ) : (
               <section className={styles.section}>
                 <p className={styles.muted}>No results available yet.</p>
+              </section>
+            )}
+
+            {historyPoints.length > 1 && (
+              <section className={styles.section}>
+                <AcceptanceChart points={historyPoints} />
               </section>
             )}
           </>
