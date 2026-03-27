@@ -130,7 +130,13 @@ class QualityControlRun(Base):
     success = Column(Boolean, nullable=False)
     results_json = Column(Text, nullable=False)
     row_count = Column(Integer, nullable=False, default=0)
+    sample_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    @property
+    def effective_date(self) -> datetime:
+        """The date to use for charts: sample_date if provided, otherwise created_at."""
+        return self.sample_date or self.created_at
 
     operation = relationship("QualityControlOperation", back_populates="runs")
 

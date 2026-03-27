@@ -47,6 +47,7 @@ export default function QualityControl() {
   const [addFnTestId, setAddFnTestId] = useState('');
   const [addFnParams, setAddFnParams] = useState<Record<string, unknown>>({});
   const [testDataJson, setTestDataJson] = useState('[{"a":1,"b":2},{"a":null,"b":3}]');
+  const [testDate, setTestDate] = useState('');
   const [testResult, setTestResult] = useState<{ success: boolean; results: { name: string; passed: boolean; message: string; figure?: string; chart_data?: ChartData }[] } | null>(null);
 
   const loadOperations = useCallback(async () => {
@@ -228,7 +229,7 @@ export default function QualityControl() {
     setError('');
     setTestResult(null);
     try {
-      const result = await runQualityControl(key, data);
+      const result = await runQualityControl(key, data, testDate || undefined);
       setTestResult({ success: result.success, results: result.results });
       await loadOperations();
     } catch (e) {
@@ -533,6 +534,13 @@ export default function QualityControl() {
               onChange={(e) => setTestDataJson(e.target.value)}
               rows={4}
               placeholder='[{"col1": 1, "col2": 2}, {"col1": null}]'
+            />
+            <label className={styles.label}>Sample date (optional — used for charts; defaults to current timestamp)</label>
+            <input
+              type="date"
+              className={styles.input}
+              value={testDate}
+              onChange={(e) => setTestDate(e.target.value)}
             />
             <button type="button" className={styles.primaryButton} onClick={handleTestRun}>
               Run

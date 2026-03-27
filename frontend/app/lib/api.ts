@@ -349,19 +349,21 @@ export interface LaneyPChartData {
 
 export type ChartData = AcceptanceBarChartData | AcceptanceHistoryChartData | LaneyPChartData;
 
-export async function runQualityControl(apiKey: string, data: Record<string, unknown>[]): Promise<{
+export async function runQualityControl(apiKey: string, data: Record<string, unknown>[], date?: string): Promise<{
   operation_id: number;
   operation_name: string;
   success: boolean;
   results: { name: string; function_type: string; passed: boolean; message: string; figure?: string; chart_data?: ChartData }[];
 }> {
+  const payload: Record<string, unknown> = { data };
+  if (date) payload.date = date;
   const res = await fetch(`${getApiUrl()}/api/quality/run`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': apiKey,
     },
-    body: JSON.stringify({ data }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const err = await res.json();

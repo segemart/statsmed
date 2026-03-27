@@ -64,6 +64,7 @@ class FunctionResponse(BaseModel):
 
 class RunPayload(BaseModel):
     data: list[dict[str, Any]]
+    date: Optional[str] = None
 
 
 def ensure_user_owns_operation(db: Session, user: User, operation_id: int) -> QualityControlOperation:
@@ -320,7 +321,7 @@ def _build_acceptance_history(db: Session, operation_id: int) -> list[dict]:
             cd = r.get("chart_data")
             if cd and cd.get("type") == "acceptance_bar":
                 points.append({
-                    "date": run.created_at.isoformat(),
+                    "date": run.effective_date.isoformat(),
                     "accepted_pct": cd.get("accepted_pct", 0),
                     "rejected_pct": cd.get("rejected_pct", 0),
                     "total": cd.get("total", 0),
@@ -367,7 +368,7 @@ def _build_laney_p_history(db: Session, operation_id: int) -> list[dict]:
             cd = r.get("chart_data")
             if cd and cd.get("type") == "acceptance_bar":
                 points.append({
-                    "date": run.created_at.isoformat(),
+                    "date": run.effective_date.isoformat(),
                     "accepted": cd.get("accepted", 0),
                     "total": cd.get("total", 0),
                     "run_id": run.id,
@@ -433,11 +434,19 @@ def run_quality(
     MAX_SAMPLE_ROWS = 100
     operation.last_sample_json = json.dumps(data[:MAX_SAMPLE_ROWS])
 
+    sample_date = None
+    if body.date:
+        try:
+            sample_date = datetime.fromisoformat(body.date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format — use ISO 8601 (e.g. 2024-06-15 or 2024-06-15T10:30:00)")
+
     run_record = QualityControlRun(
         operation_id=operation.id,
         success=all_passed,
         results_json=json.dumps(results),
         row_count=len(data),
+        sample_date=sample_date,
     )
     db.add(run_record)
     db.commit()

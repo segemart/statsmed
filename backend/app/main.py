@@ -31,6 +31,7 @@ def _run_migrations():
     migrations = [
         ("quality_control_operations", "is_public", "BOOLEAN NOT NULL DEFAULT FALSE"),
         ("quality_control_operations", "last_sample_json", "TEXT"),
+        ("quality_control_runs", "sample_date", "DATETIME"),
     ]
     with engine.begin() as conn:
         for table, column, col_def in migrations:
