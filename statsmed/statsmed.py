@@ -2077,16 +2077,16 @@ def laney_p_chart(
     m = len(x)
     p = x / n
 
-    if baseline == "prospective" and m >= 3:
+    if baseline == "prospective" and m >= 4:
         ucl = np.full(m, np.nan)
         lcl = np.full(m, np.nan)
         ooc = np.zeros(m, dtype=bool)
-        pbar_final = float(x[:-1].sum() / n[:-1].sum())
+        pbar_final = float(x[:-2].sum() / n[:-2].sum())
         sigma_z_final = 1.0
 
-        MIN_BASELINE = 2
+        MIN_BASELINE = 3
         for i in range(MIN_BASELINE, m):
-            bl = _laney_baseline(x[:i], n[:i], k, n[i:i+1], clip_limits)
+            bl = _laney_baseline(x[:i-1], n[:i-1], k, n[i:i+1], clip_limits)
             if bl is None:
                 continue
             ucl[i] = bl["ucl"][0]
@@ -2102,7 +2102,7 @@ def laney_p_chart(
 
         if not quiet:
             print(f"Laney p' chart  (k = {k}, baseline = prospective)")
-            print(f"  pbar    = {pbar_final:.4f}  (from {m - 1} baseline pts)")
+            print(f"  pbar    = {pbar_final:.4f}  (from {m - 2} baseline pts)")
             print(f"  sigma_z = {sigma_z_final:.4f}")
             print(f"  Points  = {m}")
             print(f"  OOC     = {int(ooc.sum())}")
@@ -2122,7 +2122,7 @@ def laney_p_chart(
             "out_of_control": ooc,
         }
 
-    # --- "prior" or "all" modes (or < 3 points) ---
+    # --- "prior" or "all" modes (or < 4 points for prospective) ---
     if baseline == "prior" and m >= 3:
         x_base, n_base = x[:-1], n[:-1]
     else:
