@@ -549,7 +549,9 @@ export default function QualityControl() {
                         {r.passed ? '✓' : '✗'}
                       </span>{' '}
                       <strong>{r.name}</strong>
-                      <pre className={styles.resultMessage}>{r.message}</pre>
+                      {!r.chart_data && (
+                        <pre className={styles.resultMessage}>{r.message}</pre>
+                      )}
                       {r.chart_data?.type === 'acceptance_bar' && (
                         <AcceptanceBar data={r.chart_data} />
                       )}

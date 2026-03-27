@@ -86,7 +86,9 @@ export default function PublicQCDetailPage() {
                         </span>
                         <span className={styles.resultName}>{r.name}</span>
                       </div>
-                      <pre className={styles.resultMessage}>{r.message}</pre>
+                      {!r.chart_data && (
+                        <pre className={styles.resultMessage}>{r.message}</pre>
+                      )}
                       {r.chart_data?.type === 'acceptance_bar' && (
                         <AcceptanceBar data={r.chart_data} />
                       )}

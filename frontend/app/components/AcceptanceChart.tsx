@@ -65,15 +65,18 @@ export default function AcceptanceChart({ points }: AcceptanceChartProps) {
 
     const yTicks = [0, 25, 50, 75, 100];
 
+    const minLabelSpacing = 80;
+    const maxLabels = Math.max(2, Math.floor(innerW / minLabelSpacing));
+    const labelCount = Math.min(points.length, maxLabels);
     const xTicks: Tick[] = [];
-    const labelCount = Math.min(points.length, 6);
     const step = Math.max(1, Math.floor((points.length - 1) / (labelCount - 1)));
     for (let i = 0; i < points.length; i += step) {
       xTicks.push({ label: formatDate(points[i].date), x: xScale(times[i]) });
     }
     const lastIdx = points.length - 1;
-    if (xTicks.length === 0 || xTicks[xTicks.length - 1].x !== xScale(times[lastIdx])) {
-      xTicks.push({ label: formatDate(points[lastIdx].date), x: xScale(times[lastIdx]) });
+    const lastX = xScale(times[lastIdx]);
+    if (xTicks.length === 0 || (lastX - xTicks[xTicks.length - 1].x) > minLabelSpacing * 0.6) {
+      xTicks.push({ label: formatDate(points[lastIdx].date), x: lastX });
     }
 
     return { xScale, yScale, linePath, areaPath, xTicks, yTicks };
