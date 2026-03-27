@@ -93,10 +93,12 @@
 
 /* UCL / LCL control limit lines */
 
+/* Average-n limit lines (visual reference only) */
+
 .limitLine {
   fill: none;
-  stroke-width: 1.5;
-  stroke-dasharray: 5 3;
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
   stroke-dashoffset: 500;
   transition: stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -106,24 +108,26 @@
 }
 
 .uclLine {
-  stroke: rgba(239, 68, 68, 0.6);
+  stroke: rgba(239, 68, 68, 0.35);
 }
 
 .lclLine {
-  stroke: rgba(239, 68, 68, 0.6);
+  stroke: rgba(239, 68, 68, 0.35);
 }
 
-/* Individual-n band */
+/* Individual-n limit lines (actual OOC boundaries) */
 
-.indBand {
-  fill: rgba(239, 68, 68, 0.08);
-  stroke: none;
-  opacity: 0;
-  transition: opacity 0.8s ease;
+.indLine {
+  fill: none;
+  stroke: rgba(239, 68, 68, 0.7);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 3;
+  stroke-dashoffset: 500;
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.indBandVisible {
-  opacity: 1;
+.indLineVisible {
+  stroke-dashoffset: 0;
 }
 
 /* Observed data line */
@@ -281,28 +285,28 @@
 }
 
 .legendLine[data-kind="limits"] {
-  background: rgba(239, 68, 68, 0.6);
+  background: transparent;
   background-image: repeating-linear-gradient(
     90deg,
-    rgba(239, 68, 68, 0.6) 0px,
-    rgba(239, 68, 68, 0.6) 4px,
+    rgba(239, 68, 68, 0.45) 0px,
+    rgba(239, 68, 68, 0.45) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+  height: 1px;
+}
+
+.legendLine[data-kind="individual"] {
+  background: rgba(239, 68, 68, 0.7);
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(239, 68, 68, 0.7) 0px,
+    rgba(239, 68, 68, 0.7) 4px,
     transparent 4px,
     transparent 7px
   );
   background-color: transparent;
   height: 2px;
-}
-
-.legendSwatch {
-  width: 14px;
-  height: 10px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-.legendSwatch[data-kind="band"] {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
 .legendDotOoc {

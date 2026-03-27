@@ -2117,7 +2117,7 @@ def laney_p_chart(
             lcl[i] = bl["lcl"]
             ucl_ind[i] = bl["ucl_ind"]
             lcl_ind[i] = bl["lcl_ind"]
-            ooc[i] = (p[i] > ucl[i]) or (p[i] < lcl[i])
+            ooc[i] = (p[i] > ucl_ind[i]) or (p[i] < lcl_ind[i])
             pbar_final = bl["pbar"]
             sigma_z_final = bl["sigma_z"]
 

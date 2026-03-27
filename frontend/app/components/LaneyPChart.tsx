@@ -37,9 +37,9 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
 
-  const { xScale, yScale, linePath, uclPath, lclPath, indBandPath, centerY, xTicks, yTicks } = useMemo(() => {
+  const { xScale, yScale, linePath, uclPath, lclPath, uclIndPath, lclIndPath, centerY, xTicks, yTicks } = useMemo(() => {
     if (points.length === 0) {
-      return { xScale: () => 0, yScale: () => 0, linePath: '', uclPath: '', lclPath: '', indBandPath: '', centerY: 0, xTicks: [] as { label: string; x: number }[], yTicks: [] as number[] };
+      return { xScale: () => 0, yScale: () => 0, linePath: '', uclPath: '', lclPath: '', uclIndPath: '', lclIndPath: '', centerY: 0, xTicks: [] as { label: string; x: number }[], yTicks: [] as number[] };
     }
 
     const times = points.map((pt) => new Date(pt.date).getTime());
@@ -82,17 +82,8 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
     };
     const uclPath = buildLimitPath('ucl');
     const lclPath = buildLimitPath('lcl');
-
-    const indPts = points
-      .map((pt, i) => ({ i, t: times[i], u: pt.ucl_individual, l: pt.lcl_individual }))
-      .filter((d) => d.u != null && d.l != null) as { i: number; t: number; u: number; l: number }[];
-
-    let indBandPath = '';
-    if (indPts.length >= 2) {
-      const fwd = indPts.map((d, idx) => `${idx === 0 ? 'M' : 'L'}${xScale(d.t)},${yScale(d.u)}`).join(' ');
-      const bwd = [...indPts].reverse().map((d) => `L${xScale(d.t)},${yScale(d.l)}`).join(' ');
-      indBandPath = `${fwd} ${bwd} Z`;
-    }
+    const uclIndPath = buildLimitPath('ucl_individual');
+    const lclIndPath = buildLimitPath('lcl_individual');
 
     const centerY = yScale(pbar);
 
@@ -220,20 +211,17 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
               </text>
             ))}
 
-            {/* Individual-n band (shaded area showing exact limits per sample size) */}
-            {indBandPath && (
-              <path d={indBandPath} className={`${styles.indBand} ${animated ? styles.indBandVisible : ''}`} />
-            )}
+            {/* UCL / LCL average-n (visual reference, behind) */}
+            <path d={uclPath} className={`${styles.limitLine} ${styles.uclLine} ${animated ? styles.limitVisible : ''}`} />
+            <path d={lclPath} className={`${styles.limitLine} ${styles.lclLine} ${animated ? styles.limitVisible : ''}`} />
 
             {/* Center line (pbar) */}
             <line x1={0} y1={centerY} x2={innerW} y2={centerY} className={styles.centerLine} />
             <text x={innerW + 4} y={centerY} className={styles.limitLabel}>p&#772;</text>
 
-            {/* UCL (average-n) */}
-            <path d={uclPath} className={`${styles.limitLine} ${styles.uclLine} ${animated ? styles.limitVisible : ''}`} />
-
-            {/* LCL (average-n) */}
-            <path d={lclPath} className={`${styles.limitLine} ${styles.lclLine} ${animated ? styles.limitVisible : ''}`} />
+            {/* UCL / LCL individual-n (actual OOC boundaries, on top) */}
+            <path d={uclIndPath} className={`${styles.indLine} ${animated ? styles.indLineVisible : ''}`} />
+            <path d={lclIndPath} className={`${styles.indLine} ${animated ? styles.indLineVisible : ''}`} />
 
             {/* Observed proportion line */}
             <path d={linePath} className={`${styles.dataLine} ${animated ? styles.dataLineVisible : ''}`} />
@@ -309,10 +297,10 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
           <span className={styles.legendLine} data-kind="center" /> p&#772; (center)
         </span>
         <span className={styles.legendItem}>
-          <span className={styles.legendLine} data-kind="limits" /> UCL / LCL (avg n)
+          <span className={styles.legendLine} data-kind="individual" /> UCL / LCL (individual n)
         </span>
         <span className={styles.legendItem}>
-          <span className={styles.legendSwatch} data-kind="band" /> Individual n
+          <span className={styles.legendLine} data-kind="limits" /> UCL / LCL (avg n)
         </span>
         {oocCount > 0 && (
           <span className={styles.legendItem}>
