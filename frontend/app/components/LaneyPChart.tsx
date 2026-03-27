@@ -31,7 +31,7 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const margin = { top: 20, right: 20, bottom: 44, left: 52 };
+  const margin = { top: 20, right: 44, bottom: 44, left: 52 };
   const width = 700;
   const height = 320;
   const innerW = width - margin.left - margin.right;
