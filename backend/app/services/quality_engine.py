@@ -195,8 +195,8 @@ def compute_laney_p_chart(
             {
                 "date": pt["date"],
                 "p": round(float(p[i]), 4),
-                "lcl": 0.0,
-                "ucl": 1.0,
+                "lcl": None,
+                "ucl": None,
                 "n": int(n_arr[i]),
                 "out_of_control": False,
                 "run_id": pt["run_id"],
@@ -213,8 +213,8 @@ def compute_laney_p_chart(
         pts.append({
             "date": pt["date"],
             "p": round(float(result["p"][i]), 4),
-            "lcl": round(float(lcl_val), 4) if has_limits else 0.0,
-            "ucl": round(float(ucl_val), 4) if has_limits else 1.0,
+            "lcl": round(float(lcl_val), 4) if has_limits else None,
+            "ucl": round(float(ucl_val), 4) if has_limits else None,
             "n": int(n_arr[i]),
             "out_of_control": bool(result["out_of_control"][i]),
             "run_id": pt["run_id"],
