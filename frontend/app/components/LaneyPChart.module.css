@@ -97,8 +97,8 @@
 
 .limitLine {
   fill: none;
-  stroke-width: 1;
-  stroke-dasharray: 2 3;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
   stroke-dashoffset: 500;
   transition: stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -108,11 +108,11 @@
 }
 
 .uclLine {
-  stroke: rgba(239, 68, 68, 0.35);
+  stroke: rgba(168, 130, 255, 0.6);
 }
 
 .lclLine {
-  stroke: rgba(239, 68, 68, 0.35);
+  stroke: rgba(168, 130, 255, 0.6);
 }
 
 /* Individual-n limit lines (actual OOC boundaries) */
@@ -288,12 +288,12 @@
   background: transparent;
   background-image: repeating-linear-gradient(
     90deg,
-    rgba(239, 68, 68, 0.45) 0px,
-    rgba(239, 68, 68, 0.45) 2px,
-    transparent 2px,
-    transparent 5px
+    rgba(168, 130, 255, 0.7) 0px,
+    rgba(168, 130, 255, 0.7) 3px,
+    transparent 3px,
+    transparent 7px
   );
-  height: 1px;
+  height: 2px;
 }
 
 .legendLine[data-kind="individual"] {

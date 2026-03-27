@@ -143,7 +143,13 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
       }
     }
 
-    const allValues = points.flatMap((pt) => [pt.p, ...(pt.lcl != null ? [pt.lcl] : []), ...(pt.ucl != null ? [pt.ucl] : [])]);
+    const allValues = points.flatMap((pt) => [
+      pt.p,
+      ...(pt.lcl != null ? [pt.lcl] : []),
+      ...(pt.ucl != null ? [pt.ucl] : []),
+      ...(pt.lcl_individual != null ? [pt.lcl_individual] : []),
+      ...(pt.ucl_individual != null ? [pt.ucl_individual] : []),
+    ]);
     const minV = Math.min(...allValues, pbar);
     const maxV = Math.max(...allValues, pbar);
     const pad = Math.max((maxV - minV) * 0.15, 0.02);
