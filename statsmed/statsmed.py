@@ -1991,8 +1991,8 @@ def quick_overdispersion_check_poisson(fit):
         return np.nan
 
 
-def _laney_baseline(x_base, n_base, k, n_all, clip_limits):
-    """Compute pbar, sigma_z, and limits from a baseline subset, applied to all n values."""
+def _laney_baseline(x_base, n_base, k, clip_limits):
+    """Compute pbar, sigma_z, and limits from a baseline subset using average baseline n."""
     pbar = float(x_base.sum() / n_base.sum())
     if np.isclose(pbar, 0.0) or np.isclose(pbar, 1.0):
         return None
@@ -2000,14 +2000,15 @@ def _laney_baseline(x_base, n_base, k, n_all, clip_limits):
     z_base = (x_base / n_base - pbar) / se_base
     mr_z_base = np.abs(np.diff(z_base))
     sigma_z = float(np.mean(mr_z_base)) / 1.128 if len(mr_z_base) > 0 else 1.0
-    se_all = np.sqrt(pbar * (1.0 - pbar) / n_all)
-    delta = k * sigma_z * se_all
-    ucl = pbar + delta
-    lcl = pbar - delta
+    n_avg = float(np.mean(n_base))
+    se_avg = np.sqrt(pbar * (1.0 - pbar) / n_avg)
+    delta = k * sigma_z * se_avg
+    ucl = float(pbar + delta)
+    lcl = float(pbar - delta)
     if clip_limits:
-        ucl = np.clip(ucl, 0.0, 1.0)
-        lcl = np.clip(lcl, 0.0, 1.0)
-    return {"pbar": pbar, "sigma_z": sigma_z, "se": se_all, "ucl": ucl, "lcl": lcl}
+        ucl = float(np.clip(ucl, 0.0, 1.0))
+        lcl = float(np.clip(lcl, 0.0, 1.0))
+    return {"pbar": pbar, "sigma_z": sigma_z, "ucl": ucl, "lcl": lcl}
 
 
 def laney_p_chart(
@@ -2077,20 +2078,20 @@ def laney_p_chart(
     m = len(x)
     p = x / n
 
-    if baseline == "prospective" and m >= 4:
+    if baseline == "prospective" and m >= 3:
         ucl = np.full(m, np.nan)
         lcl = np.full(m, np.nan)
         ooc = np.zeros(m, dtype=bool)
-        pbar_final = float(x[:-2].sum() / n[:-2].sum())
+        pbar_final = float(x[:-1].sum() / n[:-1].sum())
         sigma_z_final = 1.0
 
-        MIN_BASELINE = 3
+        MIN_BASELINE = 2
         for i in range(MIN_BASELINE, m):
-            bl = _laney_baseline(x[:i-1], n[:i-1], k, n[i:i+1], clip_limits)
+            bl = _laney_baseline(x[:i], n[:i], k, clip_limits)
             if bl is None:
                 continue
-            ucl[i] = bl["ucl"][0]
-            lcl[i] = bl["lcl"][0]
+            ucl[i] = bl["ucl"]
+            lcl[i] = bl["lcl"]
             ooc[i] = (p[i] > ucl[i]) or (p[i] < lcl[i])
             pbar_final = bl["pbar"]
             sigma_z_final = bl["sigma_z"]
@@ -2102,7 +2103,7 @@ def laney_p_chart(
 
         if not quiet:
             print(f"Laney p' chart  (k = {k}, baseline = prospective)")
-            print(f"  pbar    = {pbar_final:.4f}  (from {m - 2} baseline pts)")
+            print(f"  pbar    = {pbar_final:.4f}  (from {m - 1} baseline pts)")
             print(f"  sigma_z = {sigma_z_final:.4f}")
             print(f"  Points  = {m}")
             print(f"  OOC     = {int(ooc.sum())}")
@@ -2122,7 +2123,7 @@ def laney_p_chart(
             "out_of_control": ooc,
         }
 
-    # --- "prior" or "all" modes (or < 4 points for prospective) ---
+    # --- "prior" or "all" modes (or < 3 points) ---
     if baseline == "prior" and m >= 3:
         x_base, n_base = x[:-1], n[:-1]
     else:
