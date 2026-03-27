@@ -47,7 +47,7 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
     const maxT = Math.max(...times);
     const rangeT = maxT - minT || 1;
 
-    const allValues = points.flatMap((pt) => [pt.p, pt.lcl, pt.ucl]);
+    const allValues = points.flatMap((pt) => [pt.p, ...(pt.lcl != null ? [pt.lcl] : []), ...(pt.ucl != null ? [pt.ucl] : [])]);
     const minV = Math.min(...allValues, pbar);
     const maxV = Math.max(...allValues, pbar);
     const pad = Math.max((maxV - minV) * 0.15, 0.02);
@@ -62,13 +62,20 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
       .map((pt, i) => `${i === 0 ? 'M' : 'L'}${xScale(times[i])},${yScale(pt.p)}`)
       .join(' ');
 
-    const uclPath = points
-      .map((pt, i) => `${i === 0 ? 'M' : 'L'}${xScale(times[i])},${yScale(pt.ucl)}`)
-      .join(' ');
-
-    const lclPath = points
-      .map((pt, i) => `${i === 0 ? 'M' : 'L'}${xScale(times[i])},${yScale(pt.lcl)}`)
-      .join(' ');
+    const buildLimitPath = (key: 'ucl' | 'lcl') => {
+      let started = false;
+      return points
+        .map((pt, i) => {
+          const v = pt[key];
+          if (v == null) return '';
+          const cmd = started ? 'L' : 'M';
+          started = true;
+          return `${cmd}${xScale(times[i])},${yScale(v)}`;
+        })
+        .join(' ');
+    };
+    const uclPath = buildLimitPath('ucl');
+    const lclPath = buildLimitPath('lcl');
 
     const centerY = yScale(pbar);
 
@@ -128,7 +135,7 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
       }
     }
 
-    const allValues = points.flatMap((pt) => [pt.p, pt.lcl, pt.ucl]);
+    const allValues = points.flatMap((pt) => [pt.p, ...(pt.lcl != null ? [pt.lcl] : []), ...(pt.ucl != null ? [pt.ucl] : [])]);
     const minV = Math.min(...allValues, pbar);
     const maxV = Math.max(...allValues, pbar);
     const pad = Math.max((maxV - minV) * 0.15, 0.02);
@@ -255,9 +262,11 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
               </span>
             </div>
             <div className={styles.tooltipMeta}>n = {tooltip.point.n}</div>
-            <div className={styles.tooltipMeta}>
-              LCL {(tooltip.point.lcl * 100).toFixed(1)}% &ndash; UCL {(tooltip.point.ucl * 100).toFixed(1)}%
-            </div>
+            {tooltip.point.lcl != null && tooltip.point.ucl != null && (
+              <div className={styles.tooltipMeta}>
+                LCL {(tooltip.point.lcl * 100).toFixed(1)}% &ndash; UCL {(tooltip.point.ucl * 100).toFixed(1)}%
+              </div>
+            )}
             {tooltip.point.out_of_control && (
               <div className={styles.tooltipFlag}>out of control</div>
             )}

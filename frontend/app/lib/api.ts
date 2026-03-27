@@ -318,8 +318,8 @@ export interface AcceptanceHistoryChartData {
 export interface LaneyPChartPoint {
   date: string;
   p: number;
-  lcl: number;
-  ucl: number;
+  lcl: number | null;
+  ucl: number | null;
   n: number;
   out_of_control: boolean;
   run_id: number;
