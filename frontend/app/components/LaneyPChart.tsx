@@ -37,9 +37,9 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
 
-  const { xScale, yScale, linePath, uclPath, lclPath, centerY, xTicks, yTicks } = useMemo(() => {
+  const { xScale, yScale, linePath, uclPath, lclPath, indBandPath, centerY, xTicks, yTicks } = useMemo(() => {
     if (points.length === 0) {
-      return { xScale: () => 0, yScale: () => 0, linePath: '', uclPath: '', lclPath: '', centerY: 0, xTicks: [] as { label: string; x: number }[], yTicks: [] as number[] };
+      return { xScale: () => 0, yScale: () => 0, linePath: '', uclPath: '', lclPath: '', indBandPath: '', centerY: 0, xTicks: [] as { label: string; x: number }[], yTicks: [] as number[] };
     }
 
     const times = points.map((pt) => new Date(pt.date).getTime());
@@ -47,7 +47,13 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
     const maxT = Math.max(...times);
     const rangeT = maxT - minT || 1;
 
-    const allValues = points.flatMap((pt) => [pt.p, ...(pt.lcl != null ? [pt.lcl] : []), ...(pt.ucl != null ? [pt.ucl] : [])]);
+    const allValues = points.flatMap((pt) => [
+      pt.p,
+      ...(pt.lcl != null ? [pt.lcl] : []),
+      ...(pt.ucl != null ? [pt.ucl] : []),
+      ...(pt.lcl_individual != null ? [pt.lcl_individual] : []),
+      ...(pt.ucl_individual != null ? [pt.ucl_individual] : []),
+    ]);
     const minV = Math.min(...allValues, pbar);
     const maxV = Math.max(...allValues, pbar);
     const pad = Math.max((maxV - minV) * 0.15, 0.02);
@@ -62,7 +68,7 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
       .map((pt, i) => `${i === 0 ? 'M' : 'L'}${xScale(times[i])},${yScale(pt.p)}`)
       .join(' ');
 
-    const buildLimitPath = (key: 'ucl' | 'lcl') => {
+    const buildLimitPath = (key: 'ucl' | 'lcl' | 'ucl_individual' | 'lcl_individual') => {
       let started = false;
       return points
         .map((pt, i) => {
@@ -76,6 +82,17 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
     };
     const uclPath = buildLimitPath('ucl');
     const lclPath = buildLimitPath('lcl');
+
+    const indPts = points
+      .map((pt, i) => ({ i, t: times[i], u: pt.ucl_individual, l: pt.lcl_individual }))
+      .filter((d) => d.u != null && d.l != null) as { i: number; t: number; u: number; l: number }[];
+
+    let indBandPath = '';
+    if (indPts.length >= 2) {
+      const fwd = indPts.map((d, idx) => `${idx === 0 ? 'M' : 'L'}${xScale(d.t)},${yScale(d.u)}`).join(' ');
+      const bwd = [...indPts].reverse().map((d) => `L${xScale(d.t)},${yScale(d.l)}`).join(' ');
+      indBandPath = `${fwd} ${bwd} Z`;
+    }
 
     const centerY = yScale(pbar);
 
@@ -111,7 +128,7 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
       }
     }
 
-    return { xScale, yScale, linePath, uclPath, lclPath, centerY, xTicks, yTicks };
+    return { xScale, yScale, linePath, uclPath, lclPath, indBandPath, centerY, xTicks, yTicks };
   }, [points, pbar, innerW, innerH]);
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -203,14 +220,19 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
               </text>
             ))}
 
+            {/* Individual-n band (shaded area showing exact limits per sample size) */}
+            {indBandPath && (
+              <path d={indBandPath} className={`${styles.indBand} ${animated ? styles.indBandVisible : ''}`} />
+            )}
+
             {/* Center line (pbar) */}
             <line x1={0} y1={centerY} x2={innerW} y2={centerY} className={styles.centerLine} />
             <text x={innerW + 4} y={centerY} className={styles.limitLabel}>p&#772;</text>
 
-            {/* UCL */}
+            {/* UCL (average-n) */}
             <path d={uclPath} className={`${styles.limitLine} ${styles.uclLine} ${animated ? styles.limitVisible : ''}`} />
 
-            {/* LCL */}
+            {/* LCL (average-n) */}
             <path d={lclPath} className={`${styles.limitLine} ${styles.lclLine} ${animated ? styles.limitVisible : ''}`} />
 
             {/* Observed proportion line */}
@@ -264,7 +286,12 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
             <div className={styles.tooltipMeta}>n = {tooltip.point.n}</div>
             {tooltip.point.lcl != null && tooltip.point.ucl != null && (
               <div className={styles.tooltipMeta}>
-                LCL {(tooltip.point.lcl * 100).toFixed(1)}% &ndash; UCL {(tooltip.point.ucl * 100).toFixed(1)}%
+                LCL {(tooltip.point.lcl * 100).toFixed(1)}% &ndash; UCL {(tooltip.point.ucl * 100).toFixed(1)}% (avg n)
+              </div>
+            )}
+            {tooltip.point.lcl_individual != null && tooltip.point.ucl_individual != null && (
+              <div className={styles.tooltipMeta}>
+                LCL {(tooltip.point.lcl_individual * 100).toFixed(1)}% &ndash; UCL {(tooltip.point.ucl_individual * 100).toFixed(1)}% (n={tooltip.point.n})
               </div>
             )}
             {tooltip.point.out_of_control && (
@@ -282,7 +309,10 @@ export default function LaneyPChart({ points, pbar, sigma_z, k }: LaneyPChartPro
           <span className={styles.legendLine} data-kind="center" /> p&#772; (center)
         </span>
         <span className={styles.legendItem}>
-          <span className={styles.legendLine} data-kind="limits" /> UCL / LCL
+          <span className={styles.legendLine} data-kind="limits" /> UCL / LCL (avg n)
+        </span>
+        <span className={styles.legendItem}>
+          <span className={styles.legendSwatch} data-kind="band" /> Individual n
         </span>
         {oocCount > 0 && (
           <span className={styles.legendItem}>

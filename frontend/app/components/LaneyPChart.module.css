@@ -113,6 +113,19 @@
   stroke: rgba(239, 68, 68, 0.6);
 }
 
+/* Individual-n band */
+
+.indBand {
+  fill: rgba(239, 68, 68, 0.08);
+  stroke: none;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+.indBandVisible {
+  opacity: 1;
+}
+
 /* Observed data line */
 
 .dataLine {
@@ -278,6 +291,18 @@
   );
   background-color: transparent;
   height: 2px;
+}
+
+.legendSwatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legendSwatch[data-kind="band"] {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
 .legendDotOoc {

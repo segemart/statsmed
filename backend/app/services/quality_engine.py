@@ -205,12 +205,16 @@ def compute_laney_p_chart(
         ]
         return {"type": "laney_p_chart", "pbar": round(pbar, 4), "sigma_z": 0, "k": k, "points": pts}
 
+    ucl_ind_arr = result.get("ucl_individual")
+    lcl_ind_arr = result.get("lcl_individual")
+
     pts = []
     for i, pt in enumerate(history_points):
         lcl_val = result["lcl"][i]
         ucl_val = result["ucl"][i]
         has_limits = not (np.isnan(lcl_val) or np.isnan(ucl_val))
-        pts.append({
+
+        point_data: dict = {
             "date": pt["date"],
             "p": round(float(result["p"][i]), 4),
             "lcl": round(float(lcl_val), 4) if has_limits else None,
@@ -218,7 +222,19 @@ def compute_laney_p_chart(
             "n": int(n_arr[i]),
             "out_of_control": bool(result["out_of_control"][i]),
             "run_id": pt["run_id"],
-        })
+        }
+
+        if ucl_ind_arr is not None and lcl_ind_arr is not None:
+            ucl_ind_val = ucl_ind_arr[i]
+            lcl_ind_val = lcl_ind_arr[i]
+            has_ind = not (np.isnan(ucl_ind_val) or np.isnan(lcl_ind_val))
+            point_data["ucl_individual"] = round(float(ucl_ind_val), 4) if has_ind else None
+            point_data["lcl_individual"] = round(float(lcl_ind_val), 4) if has_ind else None
+        else:
+            point_data["ucl_individual"] = None
+            point_data["lcl_individual"] = None
+
+        pts.append(point_data)
 
     return {
         "type": "laney_p_chart",

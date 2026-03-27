@@ -320,6 +320,8 @@ export interface LaneyPChartPoint {
   p: number;
   lcl: number | null;
   ucl: number | null;
+  lcl_individual: number | null;
+  ucl_individual: number | null;
   n: number;
   out_of_control: boolean;
   run_id: number;
