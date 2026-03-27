@@ -21,6 +21,16 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+async function safeJsonError(res: Response, fallback: string): Promise<never> {
+  try {
+    const err = await res.json();
+    throw new Error(err.detail || fallback);
+  } catch (e) {
+    if (e instanceof Error && e.message !== fallback && !e.message.includes('JSON')) throw e;
+    throw new Error(`${fallback} (HTTP ${res.status})`);
+  }
+}
+
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const headers: Record<string, string> = {
     ...getAuthHeaders(),
@@ -55,10 +65,7 @@ export async function registerUser(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, email, password }),
   });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'Registration failed');
-  }
+  if (!res.ok) await safeJsonError(res, 'Registration failed');
   return res.json();
 }
 
@@ -68,10 +75,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'Login failed');
-  }
+  if (!res.ok) await safeJsonError(res, 'Login failed');
   return res.json();
 }
 
@@ -123,10 +127,7 @@ export async function uploadFile(
     method: 'POST',
     body: form,
   });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'Upload failed');
-  }
+  if (!res.ok) await safeJsonError(res, 'Upload failed');
   return res.json();
 }
 
@@ -164,10 +165,7 @@ export async function runAnalysis(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ file_id: fileId, test_id: testId, params }),
   });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'Run failed');
-  }
+  if (!res.ok) await safeJsonError(res, 'Run failed');
   return res.json();
 }
 
@@ -220,10 +218,7 @@ export async function createQCOperation(name: string): Promise<QCOperation> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
   });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'Failed to create operation');
-  }
+  if (!res.ok) await safeJsonError(res, 'Failed to create operation');
   return res.json();
 }
 
@@ -248,10 +243,7 @@ export async function updateQCOperation(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'Failed to update operation');
-  }
+  if (!res.ok) await safeJsonError(res, 'Failed to update operation');
   return res.json();
 }
 
@@ -274,10 +266,7 @@ export async function createQCFunction(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, function_type: functionType, config: config ?? null, sort_order: sortOrder }),
   });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'Failed to create function');
-  }
+  if (!res.ok) await safeJsonError(res, 'Failed to create function');
   return res.json();
 }
 
@@ -300,10 +289,7 @@ export async function updateQCFunction(
       body: JSON.stringify(updates),
     }
   );
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'Failed to update function');
-  }
+  if (!res.ok) await safeJsonError(res, 'Failed to update function');
   return res.json();
 }
 
@@ -365,10 +351,7 @@ export async function runQualityControl(apiKey: string, data: Record<string, unk
     },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'Run failed');
-  }
+  if (!res.ok) await safeJsonError(res, 'Run failed');
   return res.json();
 }
 
