@@ -33,7 +33,7 @@ export default function AcceptanceChart({ points }: AcceptanceChartProps) {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const margin = { top: 20, right: 20, bottom: 44, left: 52 };
+  const margin = { top: 20, right: 44, bottom: 44, left: 52 };
   const width = 700;
   const height = 300;
   const innerW = width - margin.left - margin.right;
