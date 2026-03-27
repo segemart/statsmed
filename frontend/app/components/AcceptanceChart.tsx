@@ -65,18 +65,20 @@ export default function AcceptanceChart({ points }: AcceptanceChartProps) {
 
     const yTicks = [0, 25, 50, 75, 100];
 
-    const minLabelSpacing = 80;
-    const maxLabels = Math.max(2, Math.floor(innerW / minLabelSpacing));
-    const labelCount = Math.min(points.length, maxLabels);
-    const xTicks: Tick[] = [];
-    const step = Math.max(1, Math.floor((points.length - 1) / (labelCount - 1)));
-    for (let i = 0; i < points.length; i += step) {
-      xTicks.push({ label: formatDate(points[i].date), x: xScale(times[i]) });
+    const minLabelGap = 90;
+    const xTicks: Tick[] = [{ label: formatDate(points[0].date), x: xScale(times[0]) }];
+    for (let i = 1; i < points.length; i++) {
+      const px = xScale(times[i]);
+      if (px - xTicks[xTicks.length - 1].x >= minLabelGap) {
+        xTicks.push({ label: formatDate(points[i].date), x: px });
+      }
     }
     const lastIdx = points.length - 1;
-    const lastX = xScale(times[lastIdx]);
-    if (xTicks.length === 0 || (lastX - xTicks[xTicks.length - 1].x) > minLabelSpacing * 0.6) {
-      xTicks.push({ label: formatDate(points[lastIdx].date), x: lastX });
+    if (lastIdx > 0) {
+      const lastX = xScale(times[lastIdx]);
+      if (lastX - xTicks[xTicks.length - 1].x >= minLabelGap * 0.5) {
+        xTicks.push({ label: formatDate(points[lastIdx].date), x: lastX });
+      }
     }
 
     return { xScale, yScale, linePath, areaPath, xTicks, yTicks };
