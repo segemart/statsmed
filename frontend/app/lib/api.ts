@@ -357,15 +357,7 @@ export interface LaneyXChartData {
   points: LaneyXChartPoint[];
 }
 
-export interface ContinuousSummaryData {
-  type: 'continuous_summary';
-  column: string;
-  mean: number;
-  std: number;
-  n: number;
-}
-
-export type ChartData = AcceptanceBarChartData | AcceptanceHistoryChartData | LaneyPChartData | LaneyXChartData | ContinuousSummaryData;
+export type ChartData = AcceptanceBarChartData | AcceptanceHistoryChartData | LaneyPChartData | LaneyXChartData;
 
 export async function runQualityControl(apiKey: string, data: Record<string, unknown>[], date?: string): Promise<{
   operation_id: number;

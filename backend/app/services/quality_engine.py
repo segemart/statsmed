@@ -246,9 +246,12 @@ def compute_laney_p_chart(
     }
 
 
-def run_continuous_summary(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
-    """Compute mean/std/n for a continuous column per run (shift). Stored for Laney X' chart."""
+def run_laney_x_chart(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
+    """Compute mean/std/n for a continuous column (stored per run) and act as
+    placeholder for the Laney X' chart which is injected by the router from
+    historical runs."""
     column = config.get("column")
+    k = config.get("k", 3.0)
     if not column:
         return False, "No column specified", {}
     if not rows:
@@ -273,35 +276,25 @@ def run_continuous_summary(rows: list[dict], config: dict) -> tuple[bool, str, d
 
     nd = int(config.get("decimals", 2))
     message = (
-        f"n = {n}\n"
-        f"Mean = {mean_val:.{nd}f}\n"
+        f"n = {n}, "
+        f"Mean = {mean_val:.{nd}f}, "
         f"SD = {std_val:.{nd}f}"
     )
 
     chart_data = {
-        "type": "continuous_summary",
-        "column": column,
-        "mean": round(mean_val, nd + 2),
-        "std": round(std_val, nd + 2),
-        "n": n,
-    }
-
-    return True, message, chart_data
-
-
-def run_laney_x_chart(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
-    """Placeholder runner; actual Laney X' chart data is injected by the router from historical runs."""
-    k = config.get("k", 3.0)
-    column = config.get("column", "")
-    return True, "Laney X\u2032 chart", {
         "type": "laney_x_chart",
         "x_bar_bar": 0,
         "s_pooled": 0,
         "sigma_z": 0,
         "k": k,
         "column": column,
+        "run_mean": round(mean_val, nd + 2),
+        "run_std": round(std_val, nd + 2),
+        "run_n": n,
         "points": [],
     }
+
+    return True, message, chart_data
 
 
 def compute_laney_x_chart(
@@ -417,7 +410,6 @@ FUNCTION_RUNNERS = {
     "acceptance_bar": run_acceptance_bar,
     "acceptance_history": run_acceptance_history,
     "laney_p_chart": run_laney_p_chart,
-    "continuous_summary": run_continuous_summary,
     "laney_x_chart": run_laney_x_chart,
 }
 

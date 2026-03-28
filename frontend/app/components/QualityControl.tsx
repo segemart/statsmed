@@ -28,8 +28,7 @@ const FUNCTION_TYPES = [
   { value: 'acceptance_bar', label: 'Acceptance/Rejection bar', configHint: 'column (binary 0/1)' },
   { value: 'acceptance_history', label: 'Acceptance rate over time', configHint: 'No config needed — shows history chart from past runs' },
   { value: 'laney_p_chart', label: "Laney p\u2032 chart", configHint: 'k (sigma multiplier, default 3) — requires Acceptance/Rejection bar in same operation' },
-  { value: 'continuous_summary', label: 'Continuous summary (per shift)', configHint: 'column (continuous numeric column)' },
-  { value: 'laney_x_chart', label: "Laney X\u2032 chart", configHint: 'column + k — requires Continuous summary in same operation' },
+  { value: 'laney_x_chart', label: "Laney X\u2032 chart", configHint: 'column (continuous) + k — computes summary per run automatically' },
   { value: 'custom', label: 'Custom (placeholder)', configHint: '-' },
 ];
 
@@ -469,23 +468,12 @@ export default function QualityControl() {
                       onChange={(e) => setAddFnConfig(JSON.stringify({ k: Number(e.target.value) || 3 }))}
                     />
                   </>
-                ) : addFnType === 'continuous_summary' ? (
-                  <>
-                    <label className={styles.label}>Continuous column — the numeric column to summarise per shift/run</label>
-                    <input
-                      type="text"
-                      className={styles.input}
-                      value={addFnConfig === '{}' ? '' : (() => { try { return JSON.parse(addFnConfig).column || ''; } catch { return ''; } })()}
-                      onChange={(e) => setAddFnConfig(JSON.stringify({ column: e.target.value }))}
-                      placeholder="e.g. time_deviation"
-                    />
-                  </>
                 ) : addFnType === 'laney_x_chart' ? (
                   <>
                     <p className={styles.muted}>
-                      Laney X&prime; control chart for continuous data with overdispersion correction. Requires a Continuous summary function in the same operation. Data is collected from past runs.
+                      Laney X&prime; control chart for continuous data with overdispersion correction. Computes mean/SD per run automatically and builds the chart from past runs.
                     </p>
-                    <label className={styles.label}>Column (must match the Continuous summary column)</label>
+                    <label className={styles.label}>Continuous column — the numeric column to monitor</label>
                     <input
                       type="text"
                       className={styles.input}

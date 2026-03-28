@@ -395,7 +395,7 @@ def _enrich_laney_p_chart(results: list[dict], db: Session, operation_id: int) -
 
 
 def _build_laney_x_history(db: Session, operation_id: int, column: str) -> list[dict]:
-    """Collect continuous summary data points from past runs for Laney X' computation."""
+    """Collect per-run summary stats from past laney_x_chart results."""
     cutoff = datetime.utcnow() - timedelta(days=365)
     runs = (
         db.query(QualityControlRun)
@@ -414,14 +414,17 @@ def _build_laney_x_history(db: Session, operation_id: int, column: str) -> list[
             continue
         for r in results:
             cd = r.get("chart_data")
-            if cd and cd.get("type") == "continuous_summary" and cd.get("column") == column:
-                points.append({
-                    "date": run.effective_date.isoformat(),
-                    "mean": cd.get("mean", 0),
-                    "std": cd.get("std", 0),
-                    "n": cd.get("n", 0),
-                    "run_id": run.id,
-                })
+            if cd and cd.get("type") == "laney_x_chart" and cd.get("column") == column:
+                run_mean = cd.get("run_mean")
+                run_n = cd.get("run_n")
+                if run_mean is not None and run_n is not None and run_n >= 2:
+                    points.append({
+                        "date": run.effective_date.isoformat(),
+                        "mean": run_mean,
+                        "std": cd.get("run_std", 0),
+                        "n": run_n,
+                        "run_id": run.id,
+                    })
                 break
     return points
 
