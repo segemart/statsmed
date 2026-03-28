@@ -328,8 +328,8 @@ def compute_laney_x_chart(
             x_bar_arr=x_bar_arr, s_arr=s_arr, n_arr=n_arr,
             k=k, quiet=True, baseline="prospective",
         )
-    except ValueError as exc:
-        print(f"[Laney X'] ValueError: {exc}")
+    except Exception as exc:
+        print(f"[Laney X'] {type(exc).__name__}: {exc}")
         x_bar_bar = float(np.sum(x_bar_arr * n_arr) / np.sum(n_arr))
         pts = [
             {

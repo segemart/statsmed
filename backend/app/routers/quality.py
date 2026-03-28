@@ -442,8 +442,16 @@ def _enrich_laney_x_chart(results: list[dict], db: Session, operation_id: int) -
         if cd.get("type") == "laney_x_chart":
             k = cd.get("k", 3.0)
             column = cd.get("column", "")
-            history = _build_laney_x_history(db, operation_id, column)
-            r["chart_data"] = compute_laney_x_chart(history, k=k)
+            try:
+                history = _build_laney_x_history(db, operation_id, column)
+                r["chart_data"] = compute_laney_x_chart(history, k=k)
+            except Exception as exc:
+                print(f"[Laney X' enrich] {type(exc).__name__}: {exc}")
+                r["chart_data"] = {
+                    "type": "laney_x_chart",
+                    "x_bar_bar": 0, "s_pooled": 0, "sigma_z": 0,
+                    "k": k, "points": [],
+                }
     return results
 
 
@@ -504,9 +512,12 @@ def run_quality(
     db.add(run_record)
     db.commit()
 
-    results = _enrich_acceptance_history(results, db, operation.id)
-    results = _enrich_laney_p_chart(results, db, operation.id)
-    results = _enrich_laney_x_chart(results, db, operation.id)
+    try:
+        results = _enrich_acceptance_history(results, db, operation.id)
+        results = _enrich_laney_p_chart(results, db, operation.id)
+        results = _enrich_laney_x_chart(results, db, operation.id)
+    except Exception as exc:
+        print(f"[QC enrich] {type(exc).__name__}: {exc}")
 
     return {
         "operation_id": operation.id,
@@ -568,9 +579,12 @@ def get_public_operation(operation_id: int, db: Session = Depends(get_db)):
     )
     latest_results = json.loads(latest_run.results_json) if latest_run else []
     if latest_run:
-        latest_results = _enrich_acceptance_history(latest_results, db, op.id)
-        latest_results = _enrich_laney_p_chart(latest_results, db, op.id)
-        latest_results = _enrich_laney_x_chart(latest_results, db, op.id)
+        try:
+            latest_results = _enrich_acceptance_history(latest_results, db, op.id)
+            latest_results = _enrich_laney_p_chart(latest_results, db, op.id)
+            latest_results = _enrich_laney_x_chart(latest_results, db, op.id)
+        except Exception as exc:
+            print(f"[QC public enrich] {type(exc).__name__}: {exc}")
 
     return {
         "id": op.id,
