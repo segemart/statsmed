@@ -14,10 +14,11 @@ import {
   type QCOperation,
   type QCFunction,
 } from '../lib/api';
-import type { TestSchema, ChartData, AcceptanceHistoryChartData, LaneyPChartData } from '../lib/api';
+import type { TestSchema, ChartData, AcceptanceHistoryChartData, LaneyPChartData, LaneyXChartData } from '../lib/api';
 import AcceptanceBar from './AcceptanceBar';
 import AcceptanceChart from './AcceptanceChart';
 import LaneyPChart from './LaneyPChart';
+import LaneyXChart from './LaneyXChart';
 import styles from './QualityControl.module.css';
 
 const FUNCTION_TYPES = [
@@ -27,6 +28,8 @@ const FUNCTION_TYPES = [
   { value: 'acceptance_bar', label: 'Acceptance/Rejection bar', configHint: 'column (binary 0/1)' },
   { value: 'acceptance_history', label: 'Acceptance rate over time', configHint: 'No config needed — shows history chart from past runs' },
   { value: 'laney_p_chart', label: "Laney p\u2032 chart", configHint: 'k (sigma multiplier, default 3) — requires Acceptance/Rejection bar in same operation' },
+  { value: 'continuous_summary', label: 'Continuous summary (per shift)', configHint: 'column (continuous numeric column)' },
+  { value: 'laney_x_chart', label: "Laney X\u2032 chart", configHint: 'column + k — requires Continuous summary in same operation' },
   { value: 'custom', label: 'Custom (placeholder)', configHint: '-' },
 ];
 
@@ -466,6 +469,51 @@ export default function QualityControl() {
                       onChange={(e) => setAddFnConfig(JSON.stringify({ k: Number(e.target.value) || 3 }))}
                     />
                   </>
+                ) : addFnType === 'continuous_summary' ? (
+                  <>
+                    <label className={styles.label}>Continuous column — the numeric column to summarise per shift/run</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={addFnConfig === '{}' ? '' : (() => { try { return JSON.parse(addFnConfig).column || ''; } catch { return ''; } })()}
+                      onChange={(e) => setAddFnConfig(JSON.stringify({ column: e.target.value }))}
+                      placeholder="e.g. time_deviation"
+                    />
+                  </>
+                ) : addFnType === 'laney_x_chart' ? (
+                  <>
+                    <p className={styles.muted}>
+                      Laney X&prime; control chart for continuous data with overdispersion correction. Requires a Continuous summary function in the same operation. Data is collected from past runs.
+                    </p>
+                    <label className={styles.label}>Column (must match the Continuous summary column)</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={addFnConfig === '{}' ? '' : (() => { try { return JSON.parse(addFnConfig).column || ''; } catch { return ''; } })()}
+                      onChange={(e) => {
+                        try {
+                          const prev = addFnConfig === '{}' ? {} : JSON.parse(addFnConfig);
+                          setAddFnConfig(JSON.stringify({ ...prev, column: e.target.value }));
+                        } catch { setAddFnConfig(JSON.stringify({ column: e.target.value, k: 3 })); }
+                      }}
+                      placeholder="e.g. time_deviation"
+                    />
+                    <label className={styles.label}>k (sigma multiplier, default 3)</label>
+                    <input
+                      type="number"
+                      className={styles.input}
+                      step="0.5"
+                      min="1"
+                      max="5"
+                      value={addFnConfig === '{}' ? '3' : (() => { try { return JSON.parse(addFnConfig).k || '3'; } catch { return '3'; } })()}
+                      onChange={(e) => {
+                        try {
+                          const prev = addFnConfig === '{}' ? {} : JSON.parse(addFnConfig);
+                          setAddFnConfig(JSON.stringify({ ...prev, k: Number(e.target.value) || 3 }));
+                        } catch { setAddFnConfig(JSON.stringify({ column: '', k: Number(e.target.value) || 3 })); }
+                      }}
+                    />
+                  </>
                 ) : addFnType === 'acceptance_bar' ? (
                   <>
                     <label className={styles.label}>Binary column (0/1) — the column in your data that holds accepted (1) / rejected (0)</label>
@@ -572,6 +620,15 @@ export default function QualityControl() {
                           pbar={(r.chart_data as LaneyPChartData).pbar}
                           sigma_z={(r.chart_data as LaneyPChartData).sigma_z}
                           k={(r.chart_data as LaneyPChartData).k}
+                        />
+                      )}
+                      {r.chart_data?.type === 'laney_x_chart' && (r.chart_data as LaneyXChartData).points.length >= 2 && (
+                        <LaneyXChart
+                          points={(r.chart_data as LaneyXChartData).points}
+                          x_bar_bar={(r.chart_data as LaneyXChartData).x_bar_bar}
+                          s_pooled={(r.chart_data as LaneyXChartData).s_pooled}
+                          sigma_z={(r.chart_data as LaneyXChartData).sigma_z}
+                          k={(r.chart_data as LaneyXChartData).k}
                         />
                       )}
                       {r.figure && !r.chart_data && (

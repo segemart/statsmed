@@ -80,7 +80,7 @@ def stdnorm_test(x,Np_of_decimals = 3, quiet = False):
         if not quiet: print("Both tests do not indicate a significant difference from a normal distribution")
     return [Fn,SWn,KSn,t1,z1,t2,z2]
 
-def get_desc(x,N_of_decimals = 2,mode = 'choose', quiet = False):
+def get_desc(x,N_of_decimals = 2,mode = 'choose', quiet = False, return_dict = False):
     """Descriptive statistic of data depending on their distribution.
 
     Input: array of test-data - please exclude NaN or None Values; Number of decimals; mode (what to return).
@@ -91,29 +91,59 @@ def get_desc(x,N_of_decimals = 2,mode = 'choose', quiet = False):
                             if something else is given the respective output depends on whether the data is normal distributed due to stdnorm_test
             the output is rounded to the number of given decimals
             it also returns a numpy array containing all values depending on mode
+
+    Parameters
+    ----------
+    return_dict : bool, default False
+        If True, return a dict with named keys instead of a numpy array.
+        The dict always contains all statistics; which mode was chosen is
+        indicated by the 'mode_used' key.  This is fully backward compatible:
+        existing code that does not pass return_dict keeps getting the same
+        numpy array as before.
     """
     distr = stdnorm_test(x,quiet = True)
     mean_std = np.array([np.mean(x),np.std(x), np.nan])
     normald = get_CI_normd(x)
     IQRd = np.append(np.array([np.percentile(x,50)]),np.percentile(x, (25,75)))
     SignRd = get_CI_signrankdist_CC(x)
+
+    def _make_dict(mode_used):
+        return {
+            'mean': round(float(mean_std[0]), N_of_decimals),
+            'std': round(float(mean_std[1]), N_of_decimals),
+            'ci_mean': (round(float(normald[1]), N_of_decimals), round(float(normald[2]), N_of_decimals)),
+            'median': round(float(IQRd[0]), N_of_decimals),
+            'iqr': (round(float(IQRd[1]), N_of_decimals), round(float(IQRd[2]), N_of_decimals)),
+            'pseudomedian': round(float(SignRd[0]), N_of_decimals),
+            'ci_pseudomedian': (round(float(SignRd[1]), N_of_decimals), round(float(SignRd[2]), N_of_decimals)),
+            'n': int(len(np.asarray(x))),
+            'distribution': 'normal' if distr[0] == 0 else 'non-normal',
+            'mode_used': mode_used,
+        }
+
     if mode == 'all':
         if not quiet: print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
         if not quiet: print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
         if not quiet: print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
         if not quiet: print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
+        if return_dict:
+            return _make_dict('all')
         res = np.stack((mean_std,normald, IQRd, SignRd), axis=0)
         res = np.round(res,N_of_decimals)
         return res
     elif mode == 'normal distribution':
         if not quiet: print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
         if not quiet: print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
+        if return_dict:
+            return _make_dict('normal distribution')
         res = np.stack((mean_std,normald), axis=0)
         res = np.round(res,N_of_decimals)
         return res
     elif mode == 'no normal distribution':
         if not quiet: print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
         if not quiet: print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
+        if return_dict:
+            return _make_dict('no normal distribution')
         res = np.stack((IQRd, SignRd), axis=0)
         res = np.round(res,N_of_decimals)
         return res
@@ -121,12 +151,16 @@ def get_desc(x,N_of_decimals = 2,mode = 'choose', quiet = False):
         if distr[0] == 0:
             if not quiet: print(f'The mean with standard deviation is: {mean_std[0]:.{N_of_decimals}f} \u00B1 {mean_std[1]:.{N_of_decimals}f}')
             if not quiet: print(f'The mean with 95%-confidence interval is: {normald[0]:.{N_of_decimals}f} (CI: {normald[1]:.{N_of_decimals}f} - {normald[2]:.{N_of_decimals}f})')
+            if return_dict:
+                return _make_dict('normal distribution')
             res = np.stack((mean_std,normald), axis=0)
             res = np.round(res,N_of_decimals)
             return res
         else:
             if not quiet: print(f'The median with interquartile range (IQR) from the 25th to 75th percentile is: {IQRd[0]:.{N_of_decimals}f} (IQR: {IQRd[1]:.{N_of_decimals}f} - {IQRd[2]:.{N_of_decimals}f})')
             if not quiet: print(f'The pseudomedian with 95%-confidence interval from the signed-rank distribution is: {SignRd[0]:.{N_of_decimals}f} (CI: {SignRd[1]:.{N_of_decimals}f} - {SignRd[2]:.{N_of_decimals}f})')
+            if return_dict:
+                return _make_dict('no normal distribution')
             res = np.stack((IQRd, SignRd), axis=0)
             res = np.round(res,N_of_decimals)
             return res
@@ -2197,6 +2231,259 @@ def laney_p_chart(
         "n_points": m,
         "n_out_of_control": int(out_of_control.sum()),
         "p": p,
+        "se": se,
+        "z": z,
+        "mr_z": mr_z,
+        "lcl": lcl,
+        "ucl": ucl,
+        "out_of_control": out_of_control,
+    }
+
+
+# ---- Laney X' chart for continuous subgrouped data ----
+
+def _laney_x_baseline(x_bar_base, s_base, n_base, k, n_point=None):
+    """Compute grand mean, pooled s, sigma_z, and limits from a baseline subset.
+
+    Average-n limits use the mean baseline sample size; individual-n limits
+    use the actual sample size of the evaluated point.
+    """
+    m = len(x_bar_base)
+    if m < 2:
+        return None
+
+    weights = n_base
+    x_bar_bar = float(np.sum(x_bar_base * weights) / np.sum(weights))
+
+    df = n_base - 1.0
+    total_df = np.sum(df)
+    if total_df <= 0:
+        return None
+    s_pooled = float(np.sqrt(np.sum(df * s_base**2) / total_df))
+
+    if np.isclose(s_pooled, 0.0):
+        return None
+
+    se_base = s_pooled / np.sqrt(n_base)
+    z_base = (x_bar_base - x_bar_bar) / se_base
+    mr_z_base = np.abs(np.diff(z_base))
+    sigma_z = float(np.mean(mr_z_base)) / 1.128 if len(mr_z_base) > 0 else 1.0
+
+    n_avg = float(np.mean(n_base))
+    se_avg = s_pooled / np.sqrt(n_avg)
+    delta_avg = k * sigma_z * se_avg
+    ucl = float(x_bar_bar + delta_avg)
+    lcl = float(x_bar_bar - delta_avg)
+
+    result = {
+        "x_bar_bar": x_bar_bar,
+        "s_pooled": s_pooled,
+        "sigma_z": sigma_z,
+        "ucl": ucl,
+        "lcl": lcl,
+    }
+
+    if n_point is not None:
+        se_ind = s_pooled / np.sqrt(float(n_point))
+        delta_ind = k * sigma_z * se_ind
+        result["ucl_ind"] = float(x_bar_bar + delta_ind)
+        result["lcl_ind"] = float(x_bar_bar - delta_ind)
+
+    return result
+
+
+def laney_x_chart(
+    subgroup_values=None,
+    k=3.0,
+    quiet=False,
+    baseline="prospective",
+    x_bar_arr=None,
+    s_arr=None,
+    n_arr=None,
+):
+    """Laney X' chart for subgrouped continuous data.
+
+    Adjusts standard X-bar chart control limits by the overdispersion factor
+    sigma_z, estimated from the average moving range of the standardised
+    residuals (z-scores).  This avoids false out-of-control signals when the
+    between-subgroup variation exceeds what the within-subgroup variation
+    predicts.
+
+    Parameters
+    ----------
+    subgroup_values : list of array-like, optional
+        Each element contains the raw observations for one subgroup (shift).
+        Subgroups must each have >= 2 observations.
+    k : float, default 3.0
+        Sigma multiplier for the control limits.
+    quiet : bool, default False
+        Suppress printed output.
+    baseline : str, default "prospective"
+        - "prospective": each point i is evaluated against limits computed
+          from points 0..i-1 only.
+        - "prior": use all points except the last to establish parameters.
+        - "all": Phase I — use every point.
+    x_bar_arr, s_arr, n_arr : array-like, optional
+        Pre-computed subgroup means, standard deviations (ddof=1), and sizes.
+        Use these instead of subgroup_values when only summary statistics are
+        available (e.g. from stored historical data).  All three must be
+        provided together.
+
+    Returns
+    -------
+    dict with keys:
+        x_bar_bar   : float   – grand mean (center line)
+        s_pooled    : float   – pooled within-subgroup standard deviation
+        sigma_z     : float   – Laney overdispersion factor
+        k           : float   – sigma multiplier used
+        n_points    : int     – number of subgroups
+        n_out_of_control : int
+        x_bar       : ndarray – subgroup means
+        s           : ndarray – subgroup standard deviations
+        n           : ndarray – subgroup sizes
+        se          : ndarray – standard error of the mean per subgroup
+        z           : ndarray – standardised residuals
+        mr_z        : ndarray – moving range of z (first element NaN)
+        lcl         : ndarray – lower control limit per subgroup (avg-n)
+        ucl         : ndarray – upper control limit per subgroup (avg-n)
+        lcl_individual : ndarray – lower control limit (individual n)
+        ucl_individual : ndarray – upper control limit (individual n)
+        out_of_control : ndarray[bool]
+    """
+    if x_bar_arr is not None and s_arr is not None and n_arr is not None:
+        x_bar = np.asarray(x_bar_arr, dtype=float)
+        s = np.asarray(s_arr, dtype=float)
+        n = np.asarray(n_arr, dtype=float)
+        m = len(x_bar)
+        if m < 2:
+            raise ValueError("At least 2 subgroups are required.")
+        if not (x_bar.shape == s.shape == n.shape):
+            raise ValueError("x_bar_arr, s_arr and n_arr must have the same shape.")
+        if np.any(n < 2):
+            raise ValueError("All subgroup sizes must be >= 2.")
+    elif subgroup_values is not None:
+        subs = [np.asarray(sg, dtype=float) for sg in subgroup_values]
+        m = len(subs)
+        if m < 2:
+            raise ValueError("At least 2 subgroups are required.")
+        for i, sg in enumerate(subs):
+            if len(sg) < 2:
+                raise ValueError(f"Subgroup {i} has fewer than 2 observations.")
+        x_bar = np.array([np.mean(sg) for sg in subs])
+        s = np.array([np.std(sg, ddof=1) for sg in subs])
+        n = np.array([len(sg) for sg in subs], dtype=float)
+    else:
+        raise ValueError("Provide either subgroup_values or all of x_bar_arr, s_arr, n_arr.")
+
+    if baseline == "prospective" and m >= 3:
+        ucl = np.full(m, np.nan)
+        lcl = np.full(m, np.nan)
+        ucl_ind = np.full(m, np.nan)
+        lcl_ind = np.full(m, np.nan)
+        ooc = np.zeros(m, dtype=bool)
+        x_bar_bar_final = float(np.sum(x_bar * n) / np.sum(n))
+        s_pooled_final = 0.0
+        sigma_z_final = 1.0
+
+        MIN_BASELINE = 2
+        for i in range(MIN_BASELINE, m):
+            bl = _laney_x_baseline(x_bar[:i], s[:i], n[:i], k, n_point=n[i])
+            if bl is None:
+                continue
+            ucl[i] = bl["ucl"]
+            lcl[i] = bl["lcl"]
+            ucl_ind[i] = bl["ucl_ind"]
+            lcl_ind[i] = bl["lcl_ind"]
+            ooc[i] = (x_bar[i] > ucl_ind[i]) or (x_bar[i] < lcl_ind[i])
+            x_bar_bar_final = bl["x_bar_bar"]
+            s_pooled_final = bl["s_pooled"]
+            sigma_z_final = bl["sigma_z"]
+
+        se = s_pooled_final / np.sqrt(n) if s_pooled_final > 0 else np.zeros(m)
+        z = (x_bar - x_bar_bar_final) / np.where(se > 0, se, 1.0)
+        mr_z = np.full(m, np.nan)
+        mr_z[1:] = np.abs(np.diff(z))
+
+        if not quiet:
+            print(f"Laney X' chart  (k = {k}, baseline = prospective)")
+            print(f"  x_bar_bar = {x_bar_bar_final:.4f}  (from {m - 1} baseline pts)")
+            print(f"  s_pooled  = {s_pooled_final:.4f}")
+            print(f"  sigma_z   = {sigma_z_final:.4f}")
+            print(f"  Points    = {m}")
+            print(f"  OOC       = {int(ooc.sum())}")
+
+        return {
+            "x_bar_bar": x_bar_bar_final,
+            "s_pooled": s_pooled_final,
+            "sigma_z": sigma_z_final,
+            "k": k,
+            "n_points": m,
+            "n_out_of_control": int(ooc.sum()),
+            "x_bar": x_bar,
+            "s": s,
+            "n": n,
+            "se": se,
+            "z": z,
+            "mr_z": mr_z,
+            "lcl": lcl,
+            "ucl": ucl,
+            "lcl_individual": lcl_ind,
+            "ucl_individual": ucl_ind,
+            "out_of_control": ooc,
+        }
+
+    # --- "prior" or "all" modes (or < 3 points) ---
+    if baseline == "prior" and m >= 3:
+        x_bar_base, s_base, n_base = x_bar[:-1], s[:-1], n[:-1]
+    else:
+        x_bar_base, s_base, n_base = x_bar, s, n
+
+    weights = n_base
+    x_bar_bar = float(np.sum(x_bar_base * weights) / np.sum(weights))
+
+    df = n_base - 1.0
+    total_df = np.sum(df)
+    if total_df <= 0:
+        raise ValueError("Not enough within-subgroup degrees of freedom.")
+    s_pooled = float(np.sqrt(np.sum(df * s_base**2) / total_df))
+
+    if np.isclose(s_pooled, 0.0):
+        raise ValueError("Laney X' is not meaningful when pooled s is 0.")
+
+    se_base = s_pooled / np.sqrt(n_base)
+    z_base = (x_bar_base - x_bar_bar) / se_base
+    mr_z_base = np.abs(np.diff(z_base))
+    sigma_z = float(np.mean(mr_z_base)) / 1.128 if len(mr_z_base) > 0 else 1.0
+
+    se = s_pooled / np.sqrt(n)
+    z = (x_bar - x_bar_bar) / se
+    mr_z = np.full_like(z, fill_value=np.nan)
+    mr_z[1:] = np.abs(np.diff(z))
+
+    delta = k * sigma_z * se
+    ucl = x_bar_bar + delta
+    lcl = x_bar_bar - delta
+
+    out_of_control = (x_bar > ucl) | (x_bar < lcl)
+
+    if not quiet:
+        print(f"Laney X' chart  (k = {k}, baseline = {baseline})")
+        print(f"  x_bar_bar = {x_bar_bar:.4f}")
+        print(f"  s_pooled  = {s_pooled:.4f}")
+        print(f"  sigma_z   = {sigma_z:.4f}")
+        print(f"  Points    = {m}  (baseline: {len(x_bar_base)})")
+        print(f"  OOC       = {int(out_of_control.sum())}")
+
+    return {
+        "x_bar_bar": x_bar_bar,
+        "s_pooled": s_pooled,
+        "sigma_z": sigma_z,
+        "k": k,
+        "n_points": m,
+        "n_out_of_control": int(out_of_control.sum()),
+        "x_bar": x_bar,
+        "s": s,
+        "n": n,
         "se": se,
         "z": z,
         "mr_z": mr_z,

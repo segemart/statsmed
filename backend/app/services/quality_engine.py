@@ -16,6 +16,7 @@ import pandas as pd
 
 from .run_analysis import run_test_with_df
 from statsmed.statsmed import laney_p_chart as _statsmed_laney_p_chart
+from statsmed.statsmed import laney_x_chart as _statsmed_laney_x_chart
 
 
 def run_missing(rows: list[dict], config: dict) -> tuple[bool, str]:
@@ -245,6 +246,169 @@ def compute_laney_p_chart(
     }
 
 
+def run_continuous_summary(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
+    """Compute mean/std/n for a continuous column per run (shift). Stored for Laney X' chart."""
+    column = config.get("column")
+    if not column:
+        return False, "No column specified", {}
+    if not rows:
+        return False, "No data rows", {}
+
+    values = []
+    for row in rows:
+        v = row.get(column)
+        if v is not None:
+            try:
+                values.append(float(v))
+            except (TypeError, ValueError):
+                pass
+
+    if len(values) < 2:
+        return False, f"Need >= 2 numeric values in '{column}', got {len(values)}", {}
+
+    arr = np.array(values)
+    mean_val = float(np.mean(arr))
+    std_val = float(np.std(arr, ddof=1))
+    n = len(values)
+
+    nd = int(config.get("decimals", 2))
+    message = (
+        f"n = {n}\n"
+        f"Mean = {mean_val:.{nd}f}\n"
+        f"SD = {std_val:.{nd}f}"
+    )
+
+    chart_data = {
+        "type": "continuous_summary",
+        "column": column,
+        "mean": round(mean_val, nd + 2),
+        "std": round(std_val, nd + 2),
+        "n": n,
+    }
+
+    return True, message, chart_data
+
+
+def run_laney_x_chart(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
+    """Placeholder runner; actual Laney X' chart data is injected by the router from historical runs."""
+    k = config.get("k", 3.0)
+    column = config.get("column", "")
+    return True, "Laney X\u2032 chart", {
+        "type": "laney_x_chart",
+        "x_bar_bar": 0,
+        "s_pooled": 0,
+        "sigma_z": 0,
+        "k": k,
+        "column": column,
+        "points": [],
+    }
+
+
+def compute_laney_x_chart(
+    history_points: list[dict],
+    k: float = 3.0,
+) -> dict:
+    """
+    Compute Laney X' chart from historical continuous summary data.
+
+    history_points: list of dicts with keys: date, mean, std, n, run_id.
+    """
+    empty: dict = {
+        "type": "laney_x_chart",
+        "x_bar_bar": 0,
+        "s_pooled": 0,
+        "sigma_z": 0,
+        "k": k,
+        "points": [],
+    }
+
+    valid = [pt for pt in history_points if pt["n"] >= 2]
+    if len(valid) < 2:
+        return empty
+
+    x_bar_arr = np.array([pt["mean"] for pt in valid], dtype=float)
+    s_arr = np.array([pt["std"] for pt in valid], dtype=float)
+    n_arr = np.array([pt["n"] for pt in valid], dtype=float)
+
+    try:
+        result = _statsmed_laney_x_chart(
+            x_bar_arr=x_bar_arr, s_arr=s_arr, n_arr=n_arr,
+            k=k, quiet=True, baseline="prospective",
+        )
+    except ValueError as exc:
+        print(f"[Laney X'] ValueError: {exc}")
+        x_bar_bar = float(np.sum(x_bar_arr * n_arr) / np.sum(n_arr))
+        pts = [
+            {
+                "date": valid[i]["date"],
+                "x_bar": round(float(x_bar_arr[i]), 4),
+                "s": round(float(s_arr[i]), 4),
+                "lcl": None,
+                "ucl": None,
+                "lcl_individual": None,
+                "ucl_individual": None,
+                "n": int(n_arr[i]),
+                "out_of_control": False,
+                "run_id": valid[i]["run_id"],
+            }
+            for i in range(len(valid))
+        ]
+        return {
+            "type": "laney_x_chart",
+            "x_bar_bar": round(x_bar_bar, 4),
+            "s_pooled": 0,
+            "sigma_z": 0,
+            "k": k,
+            "points": pts,
+        }
+
+    ucl_ind_arr = result.get("ucl_individual")
+    lcl_ind_arr = result.get("lcl_individual")
+
+    pts = []
+    for i, pt in enumerate(valid):
+        lcl_val = result["lcl"][i]
+        ucl_val = result["ucl"][i]
+        has_limits = not (np.isnan(lcl_val) or np.isnan(ucl_val))
+
+        point_data: dict = {
+            "date": pt["date"],
+            "x_bar": round(float(result["x_bar"][i]), 4),
+            "s": round(float(result["s"][i]), 4),
+            "lcl": round(float(lcl_val), 4) if has_limits else None,
+            "ucl": round(float(ucl_val), 4) if has_limits else None,
+            "n": int(result["n"][i]),
+            "out_of_control": bool(result["out_of_control"][i]),
+            "run_id": pt["run_id"],
+        }
+
+        if ucl_ind_arr is not None and lcl_ind_arr is not None:
+            ucl_ind_val = ucl_ind_arr[i]
+            lcl_ind_val = lcl_ind_arr[i]
+            has_ind = not (np.isnan(ucl_ind_val) or np.isnan(lcl_ind_val))
+            point_data["ucl_individual"] = round(float(ucl_ind_val), 4) if has_ind else None
+            point_data["lcl_individual"] = round(float(lcl_ind_val), 4) if has_ind else None
+        else:
+            point_data["ucl_individual"] = None
+            point_data["lcl_individual"] = None
+
+        pts.append(point_data)
+
+    ooc_indices = [i for i in range(len(valid)) if result["out_of_control"][i]]
+    print(f"[Laney X'] prospective: {len(valid)} points, "
+          f"x_bar_bar={result['x_bar_bar']:.4f}, s_pooled={result['s_pooled']:.4f}, "
+          f"sigma_z={result['sigma_z']:.4f}, OOC={result['n_out_of_control']} at indices {ooc_indices}")
+
+    return {
+        "type": "laney_x_chart",
+        "x_bar_bar": round(result["x_bar_bar"], 4),
+        "s_pooled": round(result["s_pooled"], 4),
+        "sigma_z": round(result["sigma_z"], 4),
+        "k": result["k"],
+        "points": pts,
+    }
+
+
 FUNCTION_RUNNERS = {
     "missing": run_missing,
     "range": run_range,
@@ -253,6 +417,8 @@ FUNCTION_RUNNERS = {
     "acceptance_bar": run_acceptance_bar,
     "acceptance_history": run_acceptance_history,
     "laney_p_chart": run_laney_p_chart,
+    "continuous_summary": run_continuous_summary,
+    "laney_x_chart": run_laney_x_chart,
 }
 
 
