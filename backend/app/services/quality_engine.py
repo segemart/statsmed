@@ -5,6 +5,7 @@ Each function has a type (missing, range, statsmed_test, ...) and config; return
 Runners return (passed, message) or (passed, message, figure_base64) when a figure is produced.
 """
 import io
+import math
 import base64
 from typing import Any
 
@@ -17,6 +18,22 @@ import pandas as pd
 from .run_analysis import run_test_with_df
 from statsmed.statsmed import laney_p_chart as _statsmed_laney_p_chart
 from statsmed.statsmed import laney_x_chart as _statsmed_laney_x_chart
+
+
+def _safe_float(val, ndigits: int = 4):
+    """Convert to Python float, round, and replace NaN/Inf with None.
+
+    Starlette's JSONResponse serialises with allow_nan=False, so any
+    NaN or Inf would crash the response.  This helper ensures every
+    float value is either a finite Python float or None.
+    """
+    try:
+        f = float(val)
+    except (TypeError, ValueError):
+        return None
+    if math.isfinite(f):
+        return round(f, ndigits)
+    return None
 
 
 def run_missing(rows: list[dict], config: dict) -> tuple[bool, str]:
@@ -211,26 +228,19 @@ def compute_laney_p_chart(
 
     pts = []
     for i, pt in enumerate(history_points):
-        lcl_val = result["lcl"][i]
-        ucl_val = result["ucl"][i]
-        has_limits = not (np.isnan(lcl_val) or np.isnan(ucl_val))
-
         point_data: dict = {
             "date": pt["date"],
-            "p": round(float(result["p"][i]), 4),
-            "lcl": round(float(lcl_val), 4) if has_limits else None,
-            "ucl": round(float(ucl_val), 4) if has_limits else None,
+            "p": _safe_float(result["p"][i]),
+            "lcl": _safe_float(result["lcl"][i]),
+            "ucl": _safe_float(result["ucl"][i]),
             "n": int(n_arr[i]),
             "out_of_control": bool(result["out_of_control"][i]),
             "run_id": pt["run_id"],
         }
 
         if ucl_ind_arr is not None and lcl_ind_arr is not None:
-            ucl_ind_val = ucl_ind_arr[i]
-            lcl_ind_val = lcl_ind_arr[i]
-            has_ind = not (np.isnan(ucl_ind_val) or np.isnan(lcl_ind_val))
-            point_data["ucl_individual"] = round(float(ucl_ind_val), 4) if has_ind else None
-            point_data["lcl_individual"] = round(float(lcl_ind_val), 4) if has_ind else None
+            point_data["ucl_individual"] = _safe_float(ucl_ind_arr[i])
+            point_data["lcl_individual"] = _safe_float(lcl_ind_arr[i])
         else:
             point_data["ucl_individual"] = None
             point_data["lcl_individual"] = None
@@ -239,9 +249,9 @@ def compute_laney_p_chart(
 
     return {
         "type": "laney_p_chart",
-        "pbar": round(result["pbar"], 4),
-        "sigma_z": round(result["sigma_z"], 4),
-        "k": result["k"],
+        "pbar": _safe_float(result["pbar"]) or 0,
+        "sigma_z": _safe_float(result["sigma_z"]) or 0,
+        "k": _safe_float(result["k"]) or k,
         "points": pts,
     }
 
@@ -330,12 +340,12 @@ def compute_laney_x_chart(
         )
     except Exception as exc:
         print(f"[Laney X'] {type(exc).__name__}: {exc}")
-        x_bar_bar = float(np.sum(x_bar_arr * n_arr) / np.sum(n_arr))
+        x_bar_bar = _safe_float(np.sum(x_bar_arr * n_arr) / np.sum(n_arr)) or 0
         pts = [
             {
                 "date": valid[i]["date"],
-                "x_bar": round(float(x_bar_arr[i]), 4),
-                "s": round(float(s_arr[i]), 4),
+                "x_bar": _safe_float(x_bar_arr[i]),
+                "s": _safe_float(s_arr[i]),
                 "lcl": None,
                 "ucl": None,
                 "lcl_individual": None,
@@ -348,10 +358,10 @@ def compute_laney_x_chart(
         ]
         return {
             "type": "laney_x_chart",
-            "x_bar_bar": round(x_bar_bar, 4),
+            "x_bar_bar": x_bar_bar,
             "s_pooled": 0,
             "sigma_z": 0,
-            "k": k,
+            "k": _safe_float(k) or 3.0,
             "points": pts,
         }
 
@@ -360,27 +370,20 @@ def compute_laney_x_chart(
 
     pts = []
     for i, pt in enumerate(valid):
-        lcl_val = result["lcl"][i]
-        ucl_val = result["ucl"][i]
-        has_limits = not (np.isnan(lcl_val) or np.isnan(ucl_val))
-
         point_data: dict = {
             "date": pt["date"],
-            "x_bar": round(float(result["x_bar"][i]), 4),
-            "s": round(float(result["s"][i]), 4),
-            "lcl": round(float(lcl_val), 4) if has_limits else None,
-            "ucl": round(float(ucl_val), 4) if has_limits else None,
+            "x_bar": _safe_float(result["x_bar"][i]),
+            "s": _safe_float(result["s"][i]),
+            "lcl": _safe_float(result["lcl"][i]),
+            "ucl": _safe_float(result["ucl"][i]),
             "n": int(result["n"][i]),
             "out_of_control": bool(result["out_of_control"][i]),
             "run_id": pt["run_id"],
         }
 
         if ucl_ind_arr is not None and lcl_ind_arr is not None:
-            ucl_ind_val = ucl_ind_arr[i]
-            lcl_ind_val = lcl_ind_arr[i]
-            has_ind = not (np.isnan(ucl_ind_val) or np.isnan(lcl_ind_val))
-            point_data["ucl_individual"] = round(float(ucl_ind_val), 4) if has_ind else None
-            point_data["lcl_individual"] = round(float(lcl_ind_val), 4) if has_ind else None
+            point_data["ucl_individual"] = _safe_float(ucl_ind_arr[i])
+            point_data["lcl_individual"] = _safe_float(lcl_ind_arr[i])
         else:
             point_data["ucl_individual"] = None
             point_data["lcl_individual"] = None
@@ -389,15 +392,15 @@ def compute_laney_x_chart(
 
     ooc_indices = [i for i in range(len(valid)) if result["out_of_control"][i]]
     print(f"[Laney X'] prospective: {len(valid)} points, "
-          f"x_bar_bar={result['x_bar_bar']:.4f}, s_pooled={result['s_pooled']:.4f}, "
-          f"sigma_z={result['sigma_z']:.4f}, OOC={result['n_out_of_control']} at indices {ooc_indices}")
+          f"x_bar_bar={_safe_float(result['x_bar_bar'])}, s_pooled={_safe_float(result['s_pooled'])}, "
+          f"sigma_z={_safe_float(result['sigma_z'])}, OOC={result['n_out_of_control']} at indices {ooc_indices}")
 
     return {
         "type": "laney_x_chart",
-        "x_bar_bar": round(result["x_bar_bar"], 4),
-        "s_pooled": round(result["s_pooled"], 4),
-        "sigma_z": round(result["sigma_z"], 4),
-        "k": result["k"],
+        "x_bar_bar": _safe_float(result["x_bar_bar"]) or 0,
+        "s_pooled": _safe_float(result["s_pooled"]) or 0,
+        "sigma_z": _safe_float(result["sigma_z"]) or 0,
+        "k": _safe_float(result["k"]) or k,
         "points": pts,
     }
 
