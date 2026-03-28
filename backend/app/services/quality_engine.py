@@ -272,12 +272,14 @@ def run_laney_x_chart(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
         v = row.get(column)
         if v is not None:
             try:
-                values.append(float(v))
+                f = float(v)
+                if math.isfinite(f):
+                    values.append(f)
             except (TypeError, ValueError):
                 pass
 
     if len(values) < 2:
-        return False, f"Need >= 2 numeric values in '{column}', got {len(values)}", {}
+        return False, f"Need >= 2 finite numeric values in '{column}', got {len(values)}", {}
 
     arr = np.array(values)
     mean_val = float(np.mean(arr))

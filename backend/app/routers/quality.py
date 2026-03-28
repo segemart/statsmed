@@ -3,6 +3,7 @@ Quality control: operations (name + API key) and functions that run on incoming 
 CRUD requires auth; POST /run uses API key in header.
 """
 import json
+import math
 import secrets
 from datetime import datetime, timedelta
 from typing import Any, Optional
@@ -416,12 +417,19 @@ def _build_laney_x_history(db: Session, operation_id: int, column: str) -> list[
             cd = r.get("chart_data")
             if cd and cd.get("type") == "laney_x_chart" and cd.get("column") == column:
                 run_mean = cd.get("run_mean")
+                run_std = cd.get("run_std", 0)
                 run_n = cd.get("run_n")
-                if run_mean is not None and run_n is not None and run_n >= 2:
+                if (
+                    run_mean is not None
+                    and run_n is not None
+                    and run_n >= 2
+                    and math.isfinite(float(run_mean))
+                    and math.isfinite(float(run_std))
+                ):
                     points.append({
                         "date": run.effective_date.isoformat(),
                         "mean": run_mean,
-                        "std": cd.get("run_std", 0),
+                        "std": run_std,
                         "n": run_n,
                         "run_id": run.id,
                     })

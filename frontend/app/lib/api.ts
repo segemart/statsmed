@@ -337,8 +337,8 @@ export interface LaneyPChartData {
 
 export interface LaneyXChartPoint {
   date: string;
-  x_bar: number;
-  s: number;
+  x_bar: number | null;
+  s: number | null;
   lcl: number | null;
   ucl: number | null;
   lcl_individual: number | null;

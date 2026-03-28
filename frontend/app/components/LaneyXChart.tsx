@@ -49,12 +49,13 @@ export default function LaneyXChart({ points, x_bar_bar, s_pooled, sigma_z, k }:
     const rangeT = maxT - minT || 1;
 
     const allValues = points.flatMap((pt) => [
-      pt.x_bar,
+      ...(pt.x_bar != null ? [pt.x_bar] : []),
       ...(pt.lcl != null ? [pt.lcl] : []),
       ...(pt.ucl != null ? [pt.ucl] : []),
       ...(pt.lcl_individual != null ? [pt.lcl_individual] : []),
       ...(pt.ucl_individual != null ? [pt.ucl_individual] : []),
     ]);
+    if (allValues.length === 0) allValues.push(x_bar_bar);
     const minV = Math.min(...allValues, x_bar_bar);
     const maxV = Math.max(...allValues, x_bar_bar);
     const pad = Math.max((maxV - minV) * 0.15, 0.5);
@@ -65,8 +66,14 @@ export default function LaneyXChart({ points, x_bar_bar, s_pooled, sigma_z, k }:
     const xScale = (t: number) => ((t - minT) / rangeT) * innerW;
     const yScale = (v: number) => innerH - ((v - yMin) / yRange) * innerH;
 
+    let lineStarted = false;
     const linePath = points
-      .map((pt, i) => `${i === 0 ? 'M' : 'L'}${xScale(times[i])},${yScale(pt.x_bar)}`)
+      .map((pt, i) => {
+        if (pt.x_bar == null) return '';
+        const cmd = lineStarted ? 'L' : 'M';
+        lineStarted = true;
+        return `${cmd}${xScale(times[i])},${yScale(pt.x_bar)}`;
+      })
       .join(' ');
 
     const buildLimitPath = (key: 'ucl' | 'lcl' | 'ucl_individual' | 'lcl_individual') => {
@@ -144,22 +151,24 @@ export default function LaneyXChart({ points, x_bar_bar, s_pooled, sigma_z, k }:
       }
     }
 
-    const allValues = points.flatMap((pt) => [
-      pt.x_bar,
+    const allVals = points.flatMap((pt) => [
+      ...(pt.x_bar != null ? [pt.x_bar] : []),
       ...(pt.lcl != null ? [pt.lcl] : []),
       ...(pt.ucl != null ? [pt.ucl] : []),
       ...(pt.lcl_individual != null ? [pt.lcl_individual] : []),
       ...(pt.ucl_individual != null ? [pt.ucl_individual] : []),
     ]);
-    const minV = Math.min(...allValues, x_bar_bar);
-    const maxV = Math.max(...allValues, x_bar_bar);
+    if (allVals.length === 0) allVals.push(x_bar_bar);
+    const minV = Math.min(...allVals, x_bar_bar);
+    const maxV = Math.max(...allVals, x_bar_bar);
     const pad = Math.max((maxV - minV) * 0.15, 0.5);
     const yMin = minV - pad;
     const yMax = maxV + pad;
     const yRange = yMax - yMin || 1;
 
     const px = ((times[closest] - minT) / rangeT) * innerW + margin.left;
-    const py = innerH - ((points[closest].x_bar - yMin) / yRange) * innerH + margin.top;
+    const xBarVal = points[closest].x_bar ?? x_bar_bar;
+    const py = innerH - ((xBarVal - yMin) / yRange) * innerH + margin.top;
     setTooltip({ x: px, y: py, point: points[closest] });
   };
 
@@ -232,15 +241,17 @@ export default function LaneyXChart({ points, x_bar_bar, s_pooled, sigma_z, k }:
 
             <path d={linePath} className={`${styles.dataLine} ${animated ? styles.dataLineVisible : ''}`} />
 
-            {points.map((pt, i) => (
-              <circle
-                key={i}
-                cx={xScale(new Date(pt.date).getTime())}
-                cy={yScale(pt.x_bar)}
-                r={points.length <= 30 ? 4.5 : 3}
-                className={`${pt.out_of_control ? styles.dotOoc : styles.dot} ${animated ? styles.dotVisible : ''}`}
-              />
-            ))}
+            {points.map((pt, i) =>
+              pt.x_bar != null ? (
+                <circle
+                  key={i}
+                  cx={xScale(new Date(pt.date).getTime())}
+                  cy={yScale(pt.x_bar)}
+                  r={points.length <= 30 ? 4.5 : 3}
+                  className={`${pt.out_of_control ? styles.dotOoc : styles.dot} ${animated ? styles.dotVisible : ''}`}
+                />
+              ) : null,
+            )}
           </g>
 
           {tooltip && (
@@ -273,10 +284,10 @@ export default function LaneyXChart({ points, x_bar_bar, s_pooled, sigma_z, k }:
             <div className={styles.tooltipDate}>{formatTooltipDate(tooltip.point.date)}</div>
             <div className={styles.tooltipValue}>
               <span className={tooltip.point.out_of_control ? styles.tooltipOoc : styles.tooltipNormal}>
-                x&#772; = {tooltip.point.x_bar.toFixed(2)}
+                x&#772; = {tooltip.point.x_bar != null ? tooltip.point.x_bar.toFixed(2) : '—'}
               </span>
             </div>
-            <div className={styles.tooltipMeta}>n = {tooltip.point.n}, s = {tooltip.point.s.toFixed(3)}</div>
+            <div className={styles.tooltipMeta}>n = {tooltip.point.n}{tooltip.point.s != null ? `, s = ${tooltip.point.s.toFixed(3)}` : ''}</div>
             {tooltip.point.lcl != null && tooltip.point.ucl != null && (
               <div className={styles.tooltipMeta}>
                 LCL {tooltip.point.lcl.toFixed(2)} &ndash; UCL {tooltip.point.ucl.toFixed(2)} (avg n)
