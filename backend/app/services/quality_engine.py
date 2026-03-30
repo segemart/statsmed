@@ -284,15 +284,29 @@ def run_laney_x_chart(data, config: dict) -> tuple[bool, str, dict]:
             except (TypeError, ValueError):
                 pass
 
-    if len(values) < 2:
-        return False, f"Need >= 2 finite numeric values in '{column}', got {len(values)}", {}
+    nd = int(config.get("decimals", 2))
+    n = len(values)
+
+    if n < 2:
+        chart_data = {
+            "type": "laney_x_chart",
+            "x_bar_bar": 0,
+            "s_pooled": 0,
+            "sigma_z": 0,
+            "k": k,
+            "column": column,
+            "run_mean": None,
+            "run_std": None,
+            "run_n": n,
+            "points": [],
+        }
+        message = f"n = {n} (< 2 finite values in '{column}', skipped for chart computation)"
+        return True, message, chart_data
 
     arr = np.array(values)
     mean_val = float(np.mean(arr))
     std_val = float(np.std(arr, ddof=1))
-    n = len(values)
 
-    nd = int(config.get("decimals", 2))
     message = (
         f"n = {n}, "
         f"Mean = {mean_val:.{nd}f}, "
