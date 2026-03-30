@@ -94,7 +94,7 @@ def run_statsmed_test(rows: list[dict], config: dict) -> tuple[bool, str]:
     if not test_id:
         return False, "No test_id in config"
     if not rows:
-        return False, "No data rows"
+        return True, "n=0"
     try:
         df = pd.DataFrame(rows)
         text, _ = run_test_with_df(df, test_id, params)
@@ -118,7 +118,7 @@ def run_acceptance_bar(rows: list[dict], config: dict) -> tuple[bool, str, dict]
     if not column:
         return False, "No column specified", {}
     if not rows:
-        return False, "No data rows", {}
+        return True, "n=0", {}
 
     values = []
     for row in rows:

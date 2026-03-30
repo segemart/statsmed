@@ -320,7 +320,7 @@ def _build_acceptance_history(db: Session, operation_id: int) -> list[dict]:
             continue
         for r in results:
             cd = r.get("chart_data")
-            if cd and cd.get("type") == "acceptance_bar":
+            if cd and cd.get("type") == "acceptance_bar" and cd.get("total", 0) > 0:
                 points.append({
                     "date": run.effective_date.isoformat(),
                     "accepted_pct": cd.get("accepted_pct", 0),
@@ -367,7 +367,7 @@ def _build_laney_p_history(db: Session, operation_id: int) -> list[dict]:
             continue
         for r in results:
             cd = r.get("chart_data")
-            if cd and cd.get("type") == "acceptance_bar":
+            if cd and cd.get("type") == "acceptance_bar" and cd.get("total", 0) > 0:
                 points.append({
                     "date": run.effective_date.isoformat(),
                     "accepted": cd.get("accepted", 0),
