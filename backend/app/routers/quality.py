@@ -64,7 +64,7 @@ class FunctionResponse(BaseModel):
 
 
 class RunPayload(BaseModel):
-    data: list[dict[str, Any]]
+    data: list[dict[str, Any]] | dict[str, Any]
     date: Optional[str] = None
 
 
@@ -484,9 +484,11 @@ def run_quality(
     db: Session = Depends(get_db),
 ):
     """Run this operation's functions on the provided data. Authenticate with header: X-API-Key: <your-key>."""
-    data = body.data or []
-    if not isinstance(data, list):
-        raise HTTPException(status_code=400, detail="'data' must be a list of objects")
+    data = body.data
+    if not data:
+        raise HTTPException(status_code=400, detail="'data' is required")
+    if not isinstance(data, (list, dict)):
+        raise HTTPException(status_code=400, detail="'data' must be a list of objects or a dict of lists")
     fns = (
         db.query(QualityControlFunction)
         .filter(QualityControlFunction.operation_id == operation.id)
@@ -501,7 +503,13 @@ def run_quality(
     all_passed = all(r["passed"] for r in results)
 
     MAX_SAMPLE_ROWS = 100
-    operation.last_sample_json = json.dumps(data[:MAX_SAMPLE_ROWS])
+    if isinstance(data, list):
+        sample = data[:MAX_SAMPLE_ROWS]
+        row_count = len(data)
+    else:
+        sample = {k: v[:MAX_SAMPLE_ROWS] if isinstance(v, list) else v for k, v in data.items()}
+        row_count = max((len(v) for v in data.values() if isinstance(v, list)), default=0)
+    operation.last_sample_json = json.dumps(sample)
 
     sample_date = None
     if body.date:
@@ -514,7 +522,7 @@ def run_quality(
         operation_id=operation.id,
         success=all_passed,
         results_json=json.dumps(results),
-        row_count=len(data),
+        row_count=row_count,
         sample_date=sample_date,
     )
     db.add(run_record)

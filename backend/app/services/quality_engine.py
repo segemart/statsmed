@@ -256,7 +256,7 @@ def compute_laney_p_chart(
     }
 
 
-def run_laney_x_chart(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
+def run_laney_x_chart(data, config: dict) -> tuple[bool, str, dict]:
     """Compute mean/std/n for a continuous column (stored per run) and act as
     placeholder for the Laney X' chart which is injected by the router from
     historical runs."""
@@ -264,12 +264,18 @@ def run_laney_x_chart(rows: list[dict], config: dict) -> tuple[bool, str, dict]:
     k = config.get("k", 3.0)
     if not column:
         return False, "No column specified", {}
-    if not rows:
+    if not data:
         return False, "No data rows", {}
 
+    if isinstance(data, dict):
+        raw = data.get(column, [])
+        if not isinstance(raw, list):
+            raw = [raw]
+    else:
+        raw = [row.get(column) for row in data]
+
     values = []
-    for row in rows:
-        v = row.get(column)
+    for v in raw:
         if v is not None:
             try:
                 f = float(v)
@@ -420,7 +426,7 @@ FUNCTION_RUNNERS = {
 
 
 def run_quality_checks(
-    data: list[dict[str, Any]],
+    data: list[dict[str, Any]] | dict[str, Any],
     functions: list[tuple[str, str, dict]],
 ) -> list[dict]:
     """
