@@ -50,7 +50,7 @@ export default function QualityControl() {
   const [addFnParams, setAddFnParams] = useState<Record<string, unknown>>({});
   const [testDataJson, setTestDataJson] = useState('[{"a":1,"b":2},{"a":null,"b":3}]');
   const [testDate, setTestDate] = useState('');
-  const [testResult, setTestResult] = useState<{ success: boolean; results: { name: string; passed: boolean; message: string; figure?: string; chart_data?: ChartData }[] } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; results: { name: string; function_type: string; passed: boolean; message: string; figure?: string; chart_data?: ChartData }[] } | null>(null);
 
   const loadOperations = useCallback(async () => {
     try {
