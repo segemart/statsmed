@@ -87,6 +87,9 @@ export default function PublicQCDetailPage() {
                           {r.passed ? '\u2713' : '\u2717'}
                         </span>
                         <span className={styles.resultName}>{r.name}</span>
+                        {r.function_type && (
+                          <span className={styles.resultType}>{r.function_type.replace(/_/g, ' ')}</span>
+                        )}
                       </div>
                       {!r.chart_data && (
                         <pre className={styles.resultMessage}>{r.message}</pre>

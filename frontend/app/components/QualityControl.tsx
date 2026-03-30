@@ -589,10 +589,15 @@ export default function QualityControl() {
                 <ul className={styles.testResultList}>
                   {testResult.results.map((r, i) => (
                     <li key={i} className={styles.testResultItem}>
-                      <span className={r.passed ? styles.passed : styles.failed}>
-                        {r.passed ? '✓' : '✗'}
-                      </span>{' '}
-                      <strong>{r.name}</strong>
+                      <div className={styles.testResultItemHeader}>
+                        <span className={r.passed ? styles.passed : styles.failed}>
+                          {r.passed ? '✓' : '✗'}
+                        </span>
+                        <span className={styles.testResultName}>{r.name}</span>
+                        {r.function_type && (
+                          <span className={styles.testResultType}>{r.function_type.replace(/_/g, ' ')}</span>
+                        )}
+                      </div>
                       {!r.chart_data && (
                         <pre className={styles.resultMessage}>{r.message}</pre>
                       )}
