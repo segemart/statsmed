@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from ..db.database import get_db
 from ..db.models import User, QualityControlOperation, QualityControlFunction, QualityControlRun
 from ..auth import get_current_user
-from ..services.quality_engine import run_quality_checks, compute_laney_p_chart, compute_laney_x_chart
+from ..services.quality_engine import run_quality_checks, compute_laney_p_chart, compute_laney_x_chart, compute_laney_u_chart
 
 router = APIRouter(prefix="/api/quality", tags=["quality"])
 
@@ -463,6 +463,73 @@ def _enrich_laney_x_chart(results: list[dict], db: Session, operation_id: int) -
     return results
 
 
+def _build_laney_u_history(db: Session, operation_id: int, count_column: str, n_column: str) -> list[dict]:
+    """Collect per-run count/n data from past laney_u_chart results."""
+    cutoff = datetime.utcnow() - timedelta(days=365)
+    runs = (
+        db.query(QualityControlRun)
+        .filter(
+            QualityControlRun.operation_id == operation_id,
+            QualityControlRun.created_at >= cutoff,
+        )
+        .order_by(QualityControlRun.created_at.asc())
+        .all()
+    )
+    points: list[dict] = []
+    for run in runs:
+        try:
+            results = json.loads(run.results_json)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for r in results:
+            cd = r.get("chart_data")
+            if cd and cd.get("type") == "laney_u_chart" and cd.get("count_column") == count_column and cd.get("n_column") == n_column:
+                run_count = cd.get("run_count")
+                run_n = cd.get("run_n")
+                if (
+                    run_count is not None
+                    and run_n is not None
+                    and run_n > 0
+                    and math.isfinite(float(run_count))
+                    and math.isfinite(float(run_n))
+                ):
+                    points.append({
+                        "date": run.effective_date.isoformat(),
+                        "count": run_count,
+                        "n": run_n,
+                        "run_id": run.id,
+                    })
+                break
+    return points
+
+
+def _enrich_laney_u_chart(results: list[dict], db: Session, operation_id: int) -> list[dict]:
+    """If any result has type laney_u_chart, compute and inject the actual chart data."""
+    needs_laney_u = any(
+        r.get("chart_data", {}).get("type") == "laney_u_chart"
+        for r in results
+    )
+    if not needs_laney_u:
+        return results
+    for r in results:
+        cd = r.get("chart_data", {})
+        if cd.get("type") == "laney_u_chart":
+            k = cd.get("k", 3.0)
+            count_column = cd.get("count_column", "")
+            n_column = cd.get("n_column", "")
+            try:
+                history = _build_laney_u_history(db, operation_id, count_column, n_column)
+                r["chart_data"] = compute_laney_u_chart(history, k=k)
+            except Exception as exc:
+                print(f"[Laney U' enrich] {type(exc).__name__}: {exc}")
+                r["chart_data"] = {
+                    "type": "laney_u_chart",
+                    "ubar": 0, "sigma_z": 0,
+                    "k": k, "points": [],
+                }
+    return results
+
+
 # ----- Run (API key auth) -----
 
 def get_operation_by_api_key(
@@ -532,6 +599,7 @@ def run_quality(
         results = _enrich_acceptance_history(results, db, operation.id)
         results = _enrich_laney_p_chart(results, db, operation.id)
         results = _enrich_laney_x_chart(results, db, operation.id)
+        results = _enrich_laney_u_chart(results, db, operation.id)
     except Exception as exc:
         print(f"[QC enrich] {type(exc).__name__}: {exc}")
 
@@ -599,6 +667,7 @@ def get_public_operation(operation_id: int, db: Session = Depends(get_db)):
             latest_results = _enrich_acceptance_history(latest_results, db, op.id)
             latest_results = _enrich_laney_p_chart(latest_results, db, op.id)
             latest_results = _enrich_laney_x_chart(latest_results, db, op.id)
+            latest_results = _enrich_laney_u_chart(latest_results, db, op.id)
         except Exception as exc:
             print(f"[QC public enrich] {type(exc).__name__}: {exc}")
 

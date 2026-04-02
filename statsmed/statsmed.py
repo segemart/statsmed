@@ -2491,3 +2491,221 @@ def laney_x_chart(
         "ucl": ucl,
         "out_of_control": out_of_control,
     }
+
+
+# ---- Laney U' chart for Poisson count data ----
+
+def _laney_u_baseline(c_base, n_base, k, clip_limits, n_point=None):
+    """Compute ubar, sigma_z, and limits from a baseline subset for Poisson data.
+
+    Average-n limits use the mean baseline area of opportunity; individual-n
+    limits use the actual n of the evaluated point.
+    """
+    m = len(c_base)
+    if m < 2:
+        return None
+
+    ubar = float(c_base.sum() / n_base.sum())
+    if np.isclose(ubar, 0.0):
+        return None
+
+    se_base = np.sqrt(ubar / n_base)
+    z_base = (c_base / n_base - ubar) / se_base
+    mr_z_base = np.abs(np.diff(z_base))
+    sigma_z = float(np.mean(mr_z_base)) / 1.128 if len(mr_z_base) > 0 else 1.0
+
+    n_avg = float(np.mean(n_base))
+    se_avg = np.sqrt(ubar / n_avg)
+    delta_avg = k * sigma_z * se_avg
+    ucl = float(ubar + delta_avg)
+    lcl = float(ubar - delta_avg)
+    if clip_limits:
+        lcl = float(max(lcl, 0.0))
+
+    result = {"ubar": ubar, "sigma_z": sigma_z, "ucl": ucl, "lcl": lcl}
+
+    if n_point is not None:
+        se_ind = np.sqrt(ubar / float(n_point))
+        delta_ind = k * sigma_z * se_ind
+        ucl_ind = float(ubar + delta_ind)
+        lcl_ind = float(ubar - delta_ind)
+        if clip_limits:
+            lcl_ind = float(max(lcl_ind, 0.0))
+        result["ucl_ind"] = ucl_ind
+        result["lcl_ind"] = lcl_ind
+
+    return result
+
+
+def laney_u_chart(
+    c,
+    n,
+    k=3.0,
+    clip_limits=True,
+    quiet=False,
+    baseline="prospective",
+):
+    """Laney u' chart for subgrouped Poisson count data.
+
+    Adjusts standard u-chart control limits by the overdispersion factor
+    sigma_z, estimated from the average moving range of the standardised
+    residuals (z-scores).  This avoids false out-of-control signals that
+    a classical u-chart produces when the between-subgroup variation exceeds
+    what the Poisson model predicts.
+
+    Parameters
+    ----------
+    c : array-like
+        Number of events (counts) per subgroup.
+    n : array-like
+        Area of opportunity (exposure, units inspected, etc.) per subgroup.
+        Must be > 0.
+    k : float, default 3.0
+        Sigma multiplier for the control limits.
+    clip_limits : bool, default True
+        Clip lower control limit to >= 0.
+    quiet : bool, default False
+        Suppress printed output.
+    baseline : str, default "prospective"
+        How to compute the baseline parameters (ubar, sigma_z):
+        - "prospective": each point i is evaluated against limits computed
+          from points 0..i-1 only.
+        - "prior": use all points except the last to establish ubar and
+          sigma_z, then apply those limits to every point.
+        - "all": Phase I — use every point (classic retrospective analysis).
+
+    Returns
+    -------
+    dict with keys:
+        ubar        : float   – overall weighted rate (center line)
+        sigma_z     : float   – Laney overdispersion factor
+        k           : float   – sigma multiplier used
+        n_points    : int     – number of subgroups
+        n_out_of_control : int
+        u           : ndarray – observed rate per subgroup (c/n)
+        se          : ndarray – Poisson standard error per subgroup
+        z           : ndarray – standardised residuals
+        mr_z        : ndarray – moving range of z (first element NaN)
+        lcl         : ndarray – lower control limit per subgroup
+        ucl         : ndarray – upper control limit per subgroup
+        lcl_individual : ndarray – lower control limit (individual n)
+        ucl_individual : ndarray – upper control limit (individual n)
+        out_of_control : ndarray[bool]
+    """
+    c = np.asarray(c, dtype=float)
+    n = np.asarray(n, dtype=float)
+
+    if c.shape != n.shape:
+        raise ValueError("c and n must have the same shape.")
+    if np.any(n <= 0):
+        raise ValueError("All subgroup sizes n must be > 0.")
+    if np.any(c < 0):
+        raise ValueError("Counts c must be >= 0 for every subgroup.")
+
+    m = len(c)
+    u = c / n
+
+    if baseline == "prospective" and m >= 3:
+        ucl = np.full(m, np.nan)
+        lcl = np.full(m, np.nan)
+        ucl_ind = np.full(m, np.nan)
+        lcl_ind = np.full(m, np.nan)
+        ooc = np.zeros(m, dtype=bool)
+        ubar_final = float(c[:-1].sum() / n[:-1].sum())
+        sigma_z_final = 1.0
+
+        MIN_BASELINE = 2
+        for i in range(MIN_BASELINE, m):
+            bl = _laney_u_baseline(c[:i], n[:i], k, clip_limits, n_point=n[i])
+            if bl is None:
+                continue
+            ucl[i] = bl["ucl"]
+            lcl[i] = bl["lcl"]
+            ucl_ind[i] = bl["ucl_ind"]
+            lcl_ind[i] = bl["lcl_ind"]
+            ooc[i] = (u[i] > ucl_ind[i]) or (u[i] < lcl_ind[i])
+            ubar_final = bl["ubar"]
+            sigma_z_final = bl["sigma_z"]
+
+        se = np.sqrt(ubar_final / n) if not np.isclose(ubar_final, 0.0) else np.zeros(m)
+        z = (u - ubar_final) / np.where(se > 0, se, 1.0)
+        mr_z = np.full(m, np.nan)
+        mr_z[1:] = np.abs(np.diff(z))
+
+        if not quiet:
+            print(f"Laney u' chart  (k = {k}, baseline = prospective)")
+            print(f"  ubar    = {ubar_final:.4f}  (from {m - 1} baseline pts)")
+            print(f"  sigma_z = {sigma_z_final:.4f}")
+            print(f"  Points  = {m}")
+            print(f"  OOC     = {int(ooc.sum())}")
+
+        return {
+            "ubar": ubar_final,
+            "sigma_z": sigma_z_final,
+            "k": k,
+            "n_points": m,
+            "n_out_of_control": int(ooc.sum()),
+            "u": u,
+            "se": se,
+            "z": z,
+            "mr_z": mr_z,
+            "lcl": lcl,
+            "ucl": ucl,
+            "lcl_individual": lcl_ind,
+            "ucl_individual": ucl_ind,
+            "out_of_control": ooc,
+        }
+
+    # --- "prior" or "all" modes (or < 3 points) ---
+    if baseline == "prior" and m >= 3:
+        c_base, n_base = c[:-1], n[:-1]
+    else:
+        c_base, n_base = c, n
+
+    ubar = float(c_base.sum() / n_base.sum())
+
+    if np.isclose(ubar, 0.0):
+        raise ValueError(
+            "Laney u' is not meaningful when overall ubar is 0."
+        )
+
+    se_base = np.sqrt(ubar / n_base)
+    z_base = (c_base / n_base - ubar) / se_base
+    mr_z_base = np.abs(np.diff(z_base))
+    sigma_z = float(np.mean(mr_z_base)) / 1.128 if len(mr_z_base) > 0 else 1.0
+
+    se = np.sqrt(ubar / n)
+    z = (u - ubar) / se
+    mr_z = np.full_like(z, fill_value=np.nan)
+    mr_z[1:] = np.abs(np.diff(z))
+
+    delta = k * sigma_z * se
+    ucl = ubar + delta
+    lcl = ubar - delta
+
+    if clip_limits:
+        lcl = np.maximum(lcl, 0.0)
+
+    out_of_control = (u > ucl) | (u < lcl)
+
+    if not quiet:
+        print(f"Laney u' chart  (k = {k}, baseline = {baseline})")
+        print(f"  ubar    = {ubar:.4f}")
+        print(f"  sigma_z = {sigma_z:.4f}")
+        print(f"  Points  = {m}  (baseline: {len(c_base)})")
+        print(f"  OOC     = {int(out_of_control.sum())}")
+
+    return {
+        "ubar": ubar,
+        "sigma_z": sigma_z,
+        "k": k,
+        "n_points": m,
+        "n_out_of_control": int(out_of_control.sum()),
+        "u": u,
+        "se": se,
+        "z": z,
+        "mr_z": mr_z,
+        "lcl": lcl,
+        "ucl": ucl,
+        "out_of_control": out_of_control,
+    }

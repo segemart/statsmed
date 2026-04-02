@@ -14,11 +14,12 @@ import {
   type QCOperation,
   type QCFunction,
 } from '../lib/api';
-import type { TestSchema, ChartData, AcceptanceHistoryChartData, LaneyPChartData, LaneyXChartData } from '../lib/api';
+import type { TestSchema, ChartData, AcceptanceHistoryChartData, LaneyPChartData, LaneyXChartData, LaneyUChartData } from '../lib/api';
 import AcceptanceBar from './AcceptanceBar';
 import AcceptanceChart from './AcceptanceChart';
 import LaneyPChart from './LaneyPChart';
 import LaneyXChart from './LaneyXChart';
+import LaneyUChart from './LaneyUChart';
 import styles from './QualityControl.module.css';
 
 const FUNCTION_TYPES = [
@@ -29,6 +30,7 @@ const FUNCTION_TYPES = [
   { value: 'acceptance_history', label: 'Acceptance rate over time', configHint: 'No config needed — shows history chart from past runs' },
   { value: 'laney_p_chart', label: "Laney p\u2032 chart", configHint: 'k (sigma multiplier, default 3) — requires Acceptance/Rejection bar in same operation' },
   { value: 'laney_x_chart', label: "Laney X\u2032 chart", configHint: 'column (continuous) + k — computes summary per run automatically' },
+  { value: 'laney_u_chart', label: "Laney u\u2032 chart", configHint: 'count_column + n_column + k — monitors event rate per unit from count data' },
   { value: 'custom', label: 'Custom (placeholder)', configHint: '-' },
 ];
 
@@ -502,6 +504,53 @@ export default function QualityControl() {
                       }}
                     />
                   </>
+                ) : addFnType === 'laney_u_chart' ? (
+                  <>
+                    <p className={styles.muted}>
+                      Laney u&prime; control chart for count data (Poisson) with overdispersion correction. Monitors the rate u&nbsp;=&nbsp;count&nbsp;/&nbsp;n from past runs.
+                    </p>
+                    <label className={styles.label}>Count column — the column with event counts (integers &ge; 0)</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={addFnConfig === '{}' ? '' : (() => { try { return JSON.parse(addFnConfig).count_column || ''; } catch { return ''; } })()}
+                      onChange={(e) => {
+                        try {
+                          const prev = addFnConfig === '{}' ? {} : JSON.parse(addFnConfig);
+                          setAddFnConfig(JSON.stringify({ ...prev, count_column: e.target.value }));
+                        } catch { setAddFnConfig(JSON.stringify({ count_column: e.target.value, n_column: '', k: 3 })); }
+                      }}
+                      placeholder="e.g. defect_count"
+                    />
+                    <label className={styles.label}>n column — area of opportunity (units inspected, time periods, etc.)</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={addFnConfig === '{}' ? '' : (() => { try { return JSON.parse(addFnConfig).n_column || ''; } catch { return ''; } })()}
+                      onChange={(e) => {
+                        try {
+                          const prev = addFnConfig === '{}' ? {} : JSON.parse(addFnConfig);
+                          setAddFnConfig(JSON.stringify({ ...prev, n_column: e.target.value }));
+                        } catch { setAddFnConfig(JSON.stringify({ count_column: '', n_column: e.target.value, k: 3 })); }
+                      }}
+                      placeholder="e.g. units_inspected"
+                    />
+                    <label className={styles.label}>k (sigma multiplier, default 3)</label>
+                    <input
+                      type="number"
+                      className={styles.input}
+                      step="0.5"
+                      min="1"
+                      max="5"
+                      value={addFnConfig === '{}' ? '3' : (() => { try { return JSON.parse(addFnConfig).k || '3'; } catch { return '3'; } })()}
+                      onChange={(e) => {
+                        try {
+                          const prev = addFnConfig === '{}' ? {} : JSON.parse(addFnConfig);
+                          setAddFnConfig(JSON.stringify({ ...prev, k: Number(e.target.value) || 3 }));
+                        } catch { setAddFnConfig(JSON.stringify({ count_column: '', n_column: '', k: Number(e.target.value) || 3 })); }
+                      }}
+                    />
+                  </>
                 ) : addFnType === 'acceptance_bar' ? (
                   <>
                     <label className={styles.label}>Binary column (0/1) — the column in your data that holds accepted (1) / rejected (0)</label>
@@ -622,6 +671,14 @@ export default function QualityControl() {
                           s_pooled={(r.chart_data as LaneyXChartData).s_pooled}
                           sigma_z={(r.chart_data as LaneyXChartData).sigma_z}
                           k={(r.chart_data as LaneyXChartData).k}
+                        />
+                      )}
+                      {r.chart_data?.type === 'laney_u_chart' && (r.chart_data as LaneyUChartData).points.length >= 2 && (
+                        <LaneyUChart
+                          points={(r.chart_data as LaneyUChartData).points}
+                          ubar={(r.chart_data as LaneyUChartData).ubar}
+                          sigma_z={(r.chart_data as LaneyUChartData).sigma_z}
+                          k={(r.chart_data as LaneyUChartData).k}
                         />
                       )}
                       {r.figure && !r.chart_data && (

@@ -18,6 +18,7 @@ import pandas as pd
 from .run_analysis import run_test_with_df
 from statsmed.statsmed import laney_p_chart as _statsmed_laney_p_chart
 from statsmed.statsmed import laney_x_chart as _statsmed_laney_x_chart
+from statsmed.statsmed import laney_u_chart as _statsmed_laney_u_chart
 
 
 def _safe_float(val, ndigits: int = 4):
@@ -427,6 +428,174 @@ def compute_laney_x_chart(
     }
 
 
+def run_laney_u_chart(data, config: dict) -> tuple[bool, str, dict]:
+    """Compute count/n for a count column and area-of-opportunity column
+    (stored per run) and act as placeholder for the Laney U' chart which
+    is injected by the router from historical runs."""
+    count_column = config.get("count_column")
+    n_column = config.get("n_column")
+    k = config.get("k", 3.0)
+    if not count_column or not n_column:
+        return False, "count_column and n_column must be specified", {}
+    if not data:
+        return False, "No data rows", {}
+
+    if isinstance(data, dict):
+        raw_c = data.get(count_column, [])
+        raw_n = data.get(n_column, [])
+        if not isinstance(raw_c, list):
+            raw_c = [raw_c]
+        if not isinstance(raw_n, list):
+            raw_n = [raw_n]
+    else:
+        raw_c = [row.get(count_column) for row in data]
+        raw_n = [row.get(n_column) for row in data]
+
+    counts = []
+    areas = []
+    for vc, vn in zip(raw_c, raw_n):
+        if vc is not None and vn is not None:
+            try:
+                fc = float(vc)
+                fn = float(vn)
+                if math.isfinite(fc) and math.isfinite(fn) and fc >= 0 and fn > 0:
+                    counts.append(fc)
+                    areas.append(fn)
+            except (TypeError, ValueError):
+                pass
+
+    nd = int(config.get("decimals", 4))
+    nrows = len(counts)
+
+    if nrows == 0:
+        chart_data = {
+            "type": "laney_u_chart",
+            "ubar": 0,
+            "sigma_z": 0,
+            "k": k,
+            "count_column": count_column,
+            "n_column": n_column,
+            "run_count": None,
+            "run_n": None,
+            "run_nrows": 0,
+            "points": [],
+        }
+        return True, f"No valid count/n pairs found", chart_data
+
+    total_count = sum(counts)
+    total_n = sum(areas)
+    u_val = total_count / total_n if total_n > 0 else 0
+
+    message = (
+        f"rows = {nrows}, "
+        f"total count = {total_count:.{nd}f}, "
+        f"total n = {total_n:.{nd}f}, "
+        f"u = {u_val:.{nd}f}"
+    )
+
+    chart_data = {
+        "type": "laney_u_chart",
+        "ubar": 0,
+        "sigma_z": 0,
+        "k": k,
+        "count_column": count_column,
+        "n_column": n_column,
+        "run_count": round(total_count, nd + 2),
+        "run_n": round(total_n, nd + 2),
+        "run_nrows": nrows,
+        "points": [],
+    }
+
+    return True, message, chart_data
+
+
+def compute_laney_u_chart(
+    history_points: list[dict],
+    k: float = 3.0,
+    clip_limits: bool = True,
+) -> dict:
+    """
+    Compute Laney u' chart from historical count data.
+
+    history_points: list of dicts with keys: date, count, n, run_id.
+    """
+    empty: dict = {
+        "type": "laney_u_chart",
+        "ubar": 0,
+        "sigma_z": 0,
+        "k": k,
+        "points": [],
+    }
+
+    valid = [pt for pt in history_points if pt["n"] > 0]
+    if len(valid) < 2:
+        return empty
+
+    c_arr = np.array([pt["count"] for pt in valid], dtype=float)
+    n_arr = np.array([pt["n"] for pt in valid], dtype=float)
+
+    try:
+        result = _statsmed_laney_u_chart(c_arr, n_arr, k=k, clip_limits=clip_limits, quiet=True, baseline="prospective")
+        ooc_indices = [i for i in range(len(valid)) if result["out_of_control"][i]]
+        print(f"[Laney u'] prospective: {len(valid)} points, "
+              f"ubar={result['ubar']:.4f}, sigma_z={result['sigma_z']:.4f}, "
+              f"OOC={result['n_out_of_control']} at indices {ooc_indices}")
+    except TypeError:
+        print(f"[Laney u'] WARNING: baseline param not supported — old statsmed installed?")
+        result = _statsmed_laney_u_chart(c_arr, n_arr, k=k, clip_limits=clip_limits, quiet=True)
+    except ValueError as exc:
+        print(f"[Laney u'] ValueError: {exc}")
+        u = c_arr / n_arr
+        ubar = float(c_arr.sum() / n_arr.sum())
+        pts = [
+            {
+                "date": pt["date"],
+                "u": round(float(u[i]), 4),
+                "lcl": None,
+                "ucl": None,
+                "n": _safe_float(n_arr[i]),
+                "count": _safe_float(c_arr[i]),
+                "out_of_control": False,
+                "run_id": pt["run_id"],
+            }
+            for i, pt in enumerate(valid)
+        ]
+        return {"type": "laney_u_chart", "ubar": round(ubar, 4), "sigma_z": 0, "k": k, "points": pts}
+
+    ucl_ind_arr = result.get("ucl_individual")
+    lcl_ind_arr = result.get("lcl_individual")
+
+    pts = []
+    for i, pt in enumerate(valid):
+        point_data: dict = {
+            "date": pt["date"],
+            "u": _safe_float(result["u"][i]),
+            "lcl": _safe_float(result["lcl"][i]),
+            "ucl": _safe_float(result["ucl"][i]),
+            "n": _safe_float(n_arr[i]),
+            "count": _safe_float(c_arr[i]),
+            "out_of_control": bool(result["out_of_control"][i]),
+            "run_id": pt["run_id"],
+        }
+
+        if ucl_ind_arr is not None and lcl_ind_arr is not None:
+            point_data["ucl_individual"] = _safe_float(ucl_ind_arr[i])
+            point_data["lcl_individual"] = _safe_float(lcl_ind_arr[i])
+        else:
+            point_data["ucl_individual"] = None
+            point_data["lcl_individual"] = None
+
+        pts.append(point_data)
+
+    return {
+        "type": "laney_u_chart",
+        "ubar": _safe_float(result["ubar"]) or 0,
+        "sigma_z": _safe_float(result["sigma_z"]) or 0,
+        "k": _safe_float(result["k"]) or k,
+        "points": pts,
+    }
+
+
 FUNCTION_RUNNERS = {
     "missing": run_missing,
     "range": run_range,
@@ -436,6 +605,7 @@ FUNCTION_RUNNERS = {
     "acceptance_history": run_acceptance_history,
     "laney_p_chart": run_laney_p_chart,
     "laney_x_chart": run_laney_x_chart,
+    "laney_u_chart": run_laney_u_chart,
 }
 
 

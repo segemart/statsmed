@@ -10,11 +10,13 @@ import {
   type AcceptanceHistoryChartData,
   type LaneyPChartData,
   type LaneyXChartData,
+  type LaneyUChartData,
 } from '../../lib/api';
 import AcceptanceBar from '../../components/AcceptanceBar';
 import AcceptanceChart from '../../components/AcceptanceChart';
 import LaneyPChart from '../../components/LaneyPChart';
 import LaneyXChart from '../../components/LaneyXChart';
+import LaneyUChart from '../../components/LaneyUChart';
 import styles from '../PublicQC.module.css';
 import logoImg from '../../../Icon/NewIcon.png';
 
@@ -115,6 +117,14 @@ export default function PublicQCDetailPage() {
                           s_pooled={(r.chart_data as LaneyXChartData).s_pooled}
                           sigma_z={(r.chart_data as LaneyXChartData).sigma_z}
                           k={(r.chart_data as LaneyXChartData).k}
+                        />
+                      )}
+                      {r.chart_data?.type === 'laney_u_chart' && (r.chart_data as LaneyUChartData).points.length >= 2 && (
+                        <LaneyUChart
+                          points={(r.chart_data as LaneyUChartData).points}
+                          ubar={(r.chart_data as LaneyUChartData).ubar}
+                          sigma_z={(r.chart_data as LaneyUChartData).sigma_z}
+                          k={(r.chart_data as LaneyUChartData).k}
                         />
                       )}
                       {r.figure && !r.chart_data && (
