@@ -19,6 +19,7 @@ from .run_analysis import run_test_with_df
 from statsmed.statsmed import laney_p_chart as _statsmed_laney_p_chart
 from statsmed.statsmed import laney_x_chart as _statsmed_laney_x_chart
 from statsmed.statsmed import laney_u_chart as _statsmed_laney_u_chart
+from statsmed.statsmed import i_mr_chart as _statsmed_i_mr_chart
 
 
 def _safe_float(val, ndigits: int = 4):
@@ -596,6 +597,185 @@ def compute_laney_u_chart(
     }
 
 
+def run_success_history(data, config: dict) -> tuple[bool, str, dict]:
+    """Extract a binary column value (0/1) from the current run.
+    Actual history is injected by the router from past runs."""
+    column = config.get("column")
+    if not column:
+        return False, "No column specified", {}
+    if not data:
+        return False, "No data rows", {}
+
+    if isinstance(data, dict):
+        raw = data.get(column)
+        if raw is None:
+            raw = []
+        elif not isinstance(raw, list):
+            raw = [raw]
+    else:
+        raw = [row.get(column) for row in data]
+
+    values = []
+    for v in raw:
+        if v is not None:
+            try:
+                f = float(v)
+                if f in (0.0, 1.0):
+                    values.append(int(f))
+            except (TypeError, ValueError):
+                pass
+
+    if not values:
+        chart_data = {
+            "type": "success_history",
+            "column": column,
+            "run_value": None,
+            "points": [],
+        }
+        return True, f"No valid 0/1 values found in '{column}'", chart_data
+
+    run_value = values[0]
+    message = f"{column} = {run_value} ({'success' if run_value == 1 else 'failure'})"
+
+    chart_data = {
+        "type": "success_history",
+        "column": column,
+        "run_value": run_value,
+        "points": [],
+    }
+
+    return True, message, chart_data
+
+
+def run_i_mr_chart(data, config: dict) -> tuple[bool, str, dict]:
+    """Extract a single continuous value from the current run for the I-MR
+    chart, which is computed from historical runs by the router."""
+    column = config.get("column")
+    k = config.get("k", 3.0)
+    if not column:
+        return False, "No column specified", {}
+    if not data:
+        return False, "No data rows", {}
+
+    if isinstance(data, dict):
+        raw = data.get(column)
+        if raw is None:
+            raw = []
+        elif not isinstance(raw, list):
+            raw = [raw]
+    else:
+        raw = [row.get(column) for row in data]
+
+    values = []
+    for v in raw:
+        if v is not None:
+            try:
+                f = float(v)
+                if math.isfinite(f):
+                    values.append(f)
+            except (TypeError, ValueError):
+                pass
+
+    nd = int(config.get("decimals", 4))
+
+    if not values:
+        chart_data = {
+            "type": "i_mr_chart",
+            "x_bar": 0,
+            "mr_bar": 0,
+            "sigma": 0,
+            "k": k,
+            "column": column,
+            "run_value": None,
+            "points": [],
+        }
+        return True, f"No valid numeric values found in '{column}'", chart_data
+
+    run_value = values[0]
+    message = f"{column} = {run_value:.{nd}f}"
+
+    chart_data = {
+        "type": "i_mr_chart",
+        "x_bar": 0,
+        "mr_bar": 0,
+        "sigma": 0,
+        "k": k,
+        "column": column,
+        "run_value": round(run_value, nd + 2),
+        "points": [],
+    }
+
+    return True, message, chart_data
+
+
+def compute_i_mr_chart(
+    history_points: list[dict],
+    k: float = 3.0,
+) -> dict:
+    """Compute I-MR chart from historical individual observations.
+
+    history_points: list of dicts with keys: date, value (float), run_id.
+    """
+    empty: dict = {
+        "type": "i_mr_chart",
+        "x_bar": 0,
+        "mr_bar": 0,
+        "sigma": 0,
+        "k": k,
+        "points": [],
+    }
+
+    valid = [pt for pt in history_points if pt["value"] is not None and math.isfinite(float(pt["value"]))]
+    if len(valid) < 2:
+        return empty
+
+    x_arr = np.array([pt["value"] for pt in valid], dtype=float)
+
+    try:
+        result = _statsmed_i_mr_chart(x_arr, k=k, quiet=True, baseline="prospective")
+        ooc_indices = [i for i in range(len(valid)) if result["out_of_control"][i]]
+        print(f"[I-MR] prospective: {len(valid)} points, "
+              f"x_bar={_safe_float(result['x_bar'])}, sigma={_safe_float(result['sigma'])}, "
+              f"OOC={result['n_out_of_control']} at indices {ooc_indices}")
+    except ValueError as exc:
+        print(f"[I-MR] ValueError: {exc}")
+        x_bar = _safe_float(np.mean(x_arr)) or 0
+        pts = [
+            {
+                "date": valid[i]["date"],
+                "x": _safe_float(x_arr[i]),
+                "lcl": None,
+                "ucl": None,
+                "mr": None,
+                "out_of_control": False,
+                "run_id": valid[i]["run_id"],
+            }
+            for i in range(len(valid))
+        ]
+        return {"type": "i_mr_chart", "x_bar": x_bar, "mr_bar": 0, "sigma": 0, "k": k, "points": pts}
+
+    pts = []
+    for i, pt in enumerate(valid):
+        pts.append({
+            "date": pt["date"],
+            "x": _safe_float(result["x"][i]),
+            "mr": _safe_float(result["mr"][i]),
+            "lcl": _safe_float(result["lcl"][i]),
+            "ucl": _safe_float(result["ucl"][i]),
+            "out_of_control": bool(result["out_of_control"][i]),
+            "run_id": pt["run_id"],
+        })
+
+    return {
+        "type": "i_mr_chart",
+        "x_bar": _safe_float(result["x_bar"]) or 0,
+        "mr_bar": _safe_float(result["mr_bar"]) or 0,
+        "sigma": _safe_float(result["sigma"]) or 0,
+        "k": _safe_float(result["k"]) or k,
+        "points": pts,
+    }
+
+
 FUNCTION_RUNNERS = {
     "missing": run_missing,
     "range": run_range,
@@ -606,6 +786,8 @@ FUNCTION_RUNNERS = {
     "laney_p_chart": run_laney_p_chart,
     "laney_x_chart": run_laney_x_chart,
     "laney_u_chart": run_laney_u_chart,
+    "success_history": run_success_history,
+    "i_mr_chart": run_i_mr_chart,
 }
 
 

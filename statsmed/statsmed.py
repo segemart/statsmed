@@ -2709,3 +2709,237 @@ def laney_u_chart(
         "ucl": ucl,
         "out_of_control": out_of_control,
     }
+
+
+# ---- Success/failure history for sequential binary outcomes ----
+
+def success_history(x, N_of_decimals=2, quiet=False):
+    """Summarise sequential binary (0/1) outcomes over time.
+
+    Designed for processes where each time point produces a single binary
+    outcome (success = 1, failure = 0).  Returns the raw observations
+    together with the cumulative success rate at each step — suitable
+    for plotting a success-rate-over-time chart.
+
+    Parameters
+    ----------
+    x : array-like
+        Binary outcomes (0 or 1) in time order.
+    N_of_decimals : int, default 2
+        Rounding precision for rates.
+    quiet : bool, default False
+        Suppress printed output.
+
+    Returns
+    -------
+    dict with keys:
+        n              : int     – total number of observations
+        successes      : int     – total successes
+        failures       : int     – total failures
+        success_rate   : float   – overall success rate
+        x              : ndarray – raw binary outcomes
+        p_cumulative   : ndarray – cumulative success rate at each step
+        n_cumulative   : ndarray – cumulative trial count at each step
+    """
+    x = np.asarray(x, dtype=float)
+
+    if np.any((x != 0) & (x != 1)):
+        raise ValueError("x must contain only 0 and 1.")
+
+    m = len(x)
+    if m < 1:
+        raise ValueError("At least 1 observation is required.")
+
+    n_cum = np.arange(1, m + 1, dtype=float)
+    successes_cum = np.cumsum(x)
+    p_cum = successes_cum / n_cum
+
+    successes = int(x.sum())
+    failures = m - successes
+    success_rate = round(float(successes / m), N_of_decimals)
+
+    if not quiet:
+        print(f"Success history  (n = {m})")
+        print(f"  Successes    = {successes}")
+        print(f"  Failures     = {failures}")
+        print(f"  Success rate = {success_rate * 100:.{N_of_decimals}f}%")
+
+    return {
+        "n": m,
+        "successes": successes,
+        "failures": failures,
+        "success_rate": success_rate,
+        "x": x,
+        "p_cumulative": p_cum,
+        "n_cumulative": n_cum,
+    }
+
+
+# ---- I-MR chart for individual observations ----
+
+def _i_mr_baseline(x_base, k):
+    """Compute mean, MR-based sigma, and limits from a baseline subset.
+
+    Uses average moving range / d2 (d2 = 1.128 for span 2) as the
+    process sigma estimate — the standard I-MR approach.
+    """
+    m = len(x_base)
+    if m < 2:
+        return None
+
+    x_bar = float(np.mean(x_base))
+    mr = np.abs(np.diff(x_base))
+    mr_bar = float(np.mean(mr))
+    sigma = mr_bar / 1.128
+
+    if np.isclose(sigma, 0.0):
+        return None
+
+    ucl = x_bar + k * sigma
+    lcl = x_bar - k * sigma
+
+    return {
+        "x_bar": x_bar,
+        "mr_bar": mr_bar,
+        "sigma": sigma,
+        "ucl": ucl,
+        "lcl": lcl,
+    }
+
+
+def i_mr_chart(
+    x,
+    k=3.0,
+    quiet=False,
+    baseline="prospective",
+):
+    """I-MR (Individuals and Moving Range) chart for individual observations.
+
+    Designed for processes where each time point produces a single continuous
+    measurement (n = 1 per subgroup).  Uses the average moving range between
+    consecutive observations to estimate process variability.
+
+    In prospective mode the limits at each point are computed from all
+    preceding observations only, so the boundaries evolve as data accumulates.
+
+    Parameters
+    ----------
+    x : array-like
+        Individual observations in time order.
+    k : float, default 3.0
+        Sigma multiplier for the control limits.
+    quiet : bool, default False
+        Suppress printed output.
+    baseline : str, default "prospective"
+        - "prospective": each point i is evaluated against limits computed
+          from points 0..i-1 only.  The first MIN_BASELINE points have no
+          limits (not enough baseline data).
+        - "prior": use all points except the last.
+        - "all": Phase I — use every point.
+
+    Returns
+    -------
+    dict with keys:
+        x_bar            : float   – process mean (center line)
+        mr_bar           : float   – average moving range
+        sigma            : float   – estimated process sigma (MR_bar / d2)
+        k                : float   – sigma multiplier used
+        n_points         : int     – number of observations
+        n_out_of_control : int
+        x                : ndarray – individual observations
+        mr               : ndarray – moving ranges (first element NaN)
+        lcl              : ndarray – lower control limit per point
+        ucl              : ndarray – upper control limit per point
+        out_of_control   : ndarray[bool]
+    """
+    x = np.asarray(x, dtype=float)
+    m = len(x)
+    if m < 2:
+        raise ValueError("At least 2 observations are required.")
+
+    mr = np.full(m, np.nan)
+    mr[1:] = np.abs(np.diff(x))
+
+    if baseline == "prospective" and m >= 3:
+        ucl = np.full(m, np.nan)
+        lcl = np.full(m, np.nan)
+        ooc = np.zeros(m, dtype=bool)
+        x_bar_final = float(np.mean(x))
+        mr_bar_final = 0.0
+        sigma_final = 0.0
+
+        MIN_BASELINE = 2
+        for i in range(MIN_BASELINE, m):
+            bl = _i_mr_baseline(x[:i], k)
+            if bl is None:
+                continue
+            ucl[i] = bl["ucl"]
+            lcl[i] = bl["lcl"]
+            ooc[i] = (x[i] > bl["ucl"]) or (x[i] < bl["lcl"])
+            x_bar_final = bl["x_bar"]
+            mr_bar_final = bl["mr_bar"]
+            sigma_final = bl["sigma"]
+
+        if not quiet:
+            print(f"I-MR chart  (k = {k}, baseline = prospective)")
+            print(f"  x_bar   = {x_bar_final:.4f}  (from {m - 1} baseline pts)")
+            print(f"  MR_bar  = {mr_bar_final:.4f}")
+            print(f"  sigma   = {sigma_final:.4f}")
+            print(f"  Points  = {m}")
+            print(f"  OOC     = {int(ooc.sum())}")
+
+        return {
+            "x_bar": x_bar_final,
+            "mr_bar": mr_bar_final,
+            "sigma": sigma_final,
+            "k": k,
+            "n_points": m,
+            "n_out_of_control": int(ooc.sum()),
+            "x": x,
+            "mr": mr,
+            "lcl": lcl,
+            "ucl": ucl,
+            "out_of_control": ooc,
+        }
+
+    if baseline == "prior" and m >= 3:
+        x_base = x[:-1]
+    else:
+        x_base = x
+
+    x_bar = float(np.mean(x_base))
+    mr_base = np.abs(np.diff(x_base))
+    mr_bar = float(np.mean(mr_base))
+    sigma = mr_bar / 1.128
+
+    if np.isclose(sigma, 0.0):
+        raise ValueError("I-MR chart is not meaningful when estimated sigma is 0.")
+
+    ucl_val = x_bar + k * sigma
+    lcl_val = x_bar - k * sigma
+    ucl = np.full(m, ucl_val)
+    lcl = np.full(m, lcl_val)
+
+    out_of_control = (x > ucl) | (x < lcl)
+
+    if not quiet:
+        print(f"I-MR chart  (k = {k}, baseline = {baseline})")
+        print(f"  x_bar   = {x_bar:.4f}")
+        print(f"  MR_bar  = {mr_bar:.4f}")
+        print(f"  sigma   = {sigma:.4f}")
+        print(f"  Points  = {m}  (baseline: {len(x_base)})")
+        print(f"  OOC     = {int(out_of_control.sum())}")
+
+    return {
+        "x_bar": x_bar,
+        "mr_bar": mr_bar,
+        "sigma": sigma,
+        "k": k,
+        "n_points": m,
+        "n_out_of_control": int(out_of_control.sum()),
+        "x": x,
+        "mr": mr,
+        "lcl": lcl,
+        "ucl": ucl,
+        "out_of_control": out_of_control,
+    }
