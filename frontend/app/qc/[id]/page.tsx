@@ -11,12 +11,16 @@ import {
   type LaneyPChartData,
   type LaneyXChartData,
   type LaneyUChartData,
+  type SuccessHistoryChartData,
+  type IMRChartData,
 } from '../../lib/api';
 import AcceptanceBar from '../../components/AcceptanceBar';
 import AcceptanceChart from '../../components/AcceptanceChart';
 import LaneyPChart from '../../components/LaneyPChart';
 import LaneyXChart from '../../components/LaneyXChart';
 import LaneyUChart from '../../components/LaneyUChart';
+import SuccessHistoryChart from '../../components/SuccessHistoryChart';
+import IMRChart from '../../components/IMRChart';
 import styles from '../PublicQC.module.css';
 import logoImg from '../../../Icon/NewIcon.png';
 
@@ -125,6 +129,18 @@ export default function PublicQCDetailPage() {
                           ubar={(r.chart_data as LaneyUChartData).ubar}
                           sigma_z={(r.chart_data as LaneyUChartData).sigma_z}
                           k={(r.chart_data as LaneyUChartData).k}
+                        />
+                      )}
+                      {r.chart_data?.type === 'success_history' && (r.chart_data as SuccessHistoryChartData).points.length > 0 && (
+                        <SuccessHistoryChart points={(r.chart_data as SuccessHistoryChartData).points} />
+                      )}
+                      {r.chart_data?.type === 'i_mr_chart' && (r.chart_data as IMRChartData).points.length >= 2 && (
+                        <IMRChart
+                          points={(r.chart_data as IMRChartData).points}
+                          x_bar={(r.chart_data as IMRChartData).x_bar}
+                          mr_bar={(r.chart_data as IMRChartData).mr_bar}
+                          sigma={(r.chart_data as IMRChartData).sigma}
+                          k={(r.chart_data as IMRChartData).k}
                         />
                       )}
                       {r.figure && !r.chart_data && (

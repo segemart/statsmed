@@ -378,7 +378,37 @@ export interface LaneyUChartData {
   points: LaneyUChartPoint[];
 }
 
-export type ChartData = AcceptanceBarChartData | AcceptanceHistoryChartData | LaneyPChartData | LaneyXChartData | LaneyUChartData;
+export interface SuccessHistoryPoint {
+  date: string;
+  value: number;
+  run_id: number;
+}
+
+export interface SuccessHistoryChartData {
+  type: 'success_history';
+  points: SuccessHistoryPoint[];
+}
+
+export interface IMRChartPoint {
+  date: string;
+  x: number | null;
+  mr: number | null;
+  lcl: number | null;
+  ucl: number | null;
+  out_of_control: boolean;
+  run_id: number;
+}
+
+export interface IMRChartData {
+  type: 'i_mr_chart';
+  x_bar: number;
+  mr_bar: number;
+  sigma: number;
+  k: number;
+  points: IMRChartPoint[];
+}
+
+export type ChartData = AcceptanceBarChartData | AcceptanceHistoryChartData | LaneyPChartData | LaneyXChartData | LaneyUChartData | SuccessHistoryChartData | IMRChartData;
 
 export async function runQualityControl(apiKey: string, data: Record<string, unknown>[], date?: string): Promise<{
   operation_id: number;

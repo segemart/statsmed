@@ -14,12 +14,14 @@ import {
   type QCOperation,
   type QCFunction,
 } from '../lib/api';
-import type { TestSchema, ChartData, AcceptanceHistoryChartData, LaneyPChartData, LaneyXChartData, LaneyUChartData } from '../lib/api';
+import type { TestSchema, ChartData, AcceptanceHistoryChartData, LaneyPChartData, LaneyXChartData, LaneyUChartData, SuccessHistoryChartData, IMRChartData } from '../lib/api';
 import AcceptanceBar from './AcceptanceBar';
 import AcceptanceChart from './AcceptanceChart';
 import LaneyPChart from './LaneyPChart';
 import LaneyXChart from './LaneyXChart';
 import LaneyUChart from './LaneyUChart';
+import SuccessHistoryChart from './SuccessHistoryChart';
+import IMRChart from './IMRChart';
 import styles from './QualityControl.module.css';
 
 const FUNCTION_TYPES = [
@@ -31,6 +33,8 @@ const FUNCTION_TYPES = [
   { value: 'laney_p_chart', label: "Laney p\u2032 chart", configHint: 'k (sigma multiplier, default 3) — requires Acceptance/Rejection bar in same operation' },
   { value: 'laney_x_chart', label: "Laney X\u2032 chart", configHint: 'column (continuous) + k — computes summary per run automatically' },
   { value: 'laney_u_chart', label: "Laney u\u2032 chart", configHint: 'count_column + n_column + k — monitors event rate per unit from count data' },
+  { value: 'success_history', label: 'Success/Failure over time', configHint: 'column (binary 0/1) — shows success/failure history from past runs' },
+  { value: 'i_mr_chart', label: 'I-MR chart', configHint: 'column (continuous) + k — individuals chart with prospective control limits' },
   { value: 'custom', label: 'Custom (placeholder)', configHint: '-' },
 ];
 
@@ -551,6 +555,54 @@ export default function QualityControl() {
                       }}
                     />
                   </>
+                ) : addFnType === 'success_history' ? (
+                  <>
+                    <p className={styles.muted}>
+                      Tracks individual success (1) / failure (0) outcomes over time. No control limits — purely visual history.
+                    </p>
+                    <label className={styles.label}>Binary column (0/1) — the column with success/failure values</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={addFnConfig === '{}' ? '' : (() => { try { return JSON.parse(addFnConfig).column || ''; } catch { return ''; } })()}
+                      onChange={(e) => setAddFnConfig(JSON.stringify({ column: e.target.value }))}
+                      placeholder="e.g. value_text_success"
+                    />
+                  </>
+                ) : addFnType === 'i_mr_chart' ? (
+                  <>
+                    <p className={styles.muted}>
+                      I-MR (Individuals &amp; Moving Range) chart for single continuous measurements per run. Control limits are calculated prospectively — they evolve as data accumulates.
+                    </p>
+                    <label className={styles.label}>Continuous column — the numeric value to monitor per run</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={addFnConfig === '{}' ? '' : (() => { try { return JSON.parse(addFnConfig).column || ''; } catch { return ''; } })()}
+                      onChange={(e) => {
+                        try {
+                          const prev = addFnConfig === '{}' ? {} : JSON.parse(addFnConfig);
+                          setAddFnConfig(JSON.stringify({ ...prev, column: e.target.value }));
+                        } catch { setAddFnConfig(JSON.stringify({ column: e.target.value, k: 3 })); }
+                      }}
+                      placeholder="e.g. value_text_response_time"
+                    />
+                    <label className={styles.label}>k (sigma multiplier, default 3)</label>
+                    <input
+                      type="number"
+                      className={styles.input}
+                      step="0.5"
+                      min="1"
+                      max="5"
+                      value={addFnConfig === '{}' ? '3' : (() => { try { return JSON.parse(addFnConfig).k || '3'; } catch { return '3'; } })()}
+                      onChange={(e) => {
+                        try {
+                          const prev = addFnConfig === '{}' ? {} : JSON.parse(addFnConfig);
+                          setAddFnConfig(JSON.stringify({ ...prev, k: Number(e.target.value) || 3 }));
+                        } catch { setAddFnConfig(JSON.stringify({ column: '', k: Number(e.target.value) || 3 })); }
+                      }}
+                    />
+                  </>
                 ) : addFnType === 'acceptance_bar' ? (
                   <>
                     <label className={styles.label}>Binary column (0/1) — the column in your data that holds accepted (1) / rejected (0)</label>
@@ -679,6 +731,18 @@ export default function QualityControl() {
                           ubar={(r.chart_data as LaneyUChartData).ubar}
                           sigma_z={(r.chart_data as LaneyUChartData).sigma_z}
                           k={(r.chart_data as LaneyUChartData).k}
+                        />
+                      )}
+                      {r.chart_data?.type === 'success_history' && (r.chart_data as SuccessHistoryChartData).points.length > 0 && (
+                        <SuccessHistoryChart points={(r.chart_data as SuccessHistoryChartData).points} />
+                      )}
+                      {r.chart_data?.type === 'i_mr_chart' && (r.chart_data as IMRChartData).points.length >= 2 && (
+                        <IMRChart
+                          points={(r.chart_data as IMRChartData).points}
+                          x_bar={(r.chart_data as IMRChartData).x_bar}
+                          mr_bar={(r.chart_data as IMRChartData).mr_bar}
+                          sigma={(r.chart_data as IMRChartData).sigma}
+                          k={(r.chart_data as IMRChartData).k}
                         />
                       )}
                       {r.figure && !r.chart_data && (
