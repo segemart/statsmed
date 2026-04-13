@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { LaneyUChartPoint } from '../lib/api';
+import { logDensityIndices, MAX_CHART_DOTS } from '../lib/chartUtils';
 import styles from './LaneyPChart.module.css';
 
 interface LaneyUChartProps {
@@ -24,12 +25,6 @@ function formatTooltipDate(iso: string): string {
 export default function LaneyUChart({ points, ubar, sigma_z, k }: LaneyUChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; point: LaneyUChartPoint } | null>(null);
-  const [animated, setAnimated] = useState(false);
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setAnimated(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
 
   const margin = { top: 20, right: 44, bottom: 44, left: 60 };
   const width = 700;
@@ -37,9 +32,9 @@ export default function LaneyUChart({ points, ubar, sigma_z, k }: LaneyUChartPro
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
 
-  const { xScale, yScale, linePath, uclPath, lclPath, uclIndPath, lclIndPath, centerY, xTicks, yTicks } = useMemo(() => {
+  const { xScale, yScale, linePath, uclPath, lclPath, uclIndPath, lclIndPath, centerY, xTicks, yTicks, visibleIndices } = useMemo(() => {
     if (points.length === 0) {
-      return { xScale: () => 0, yScale: () => 0, linePath: '', uclPath: '', lclPath: '', uclIndPath: '', lclIndPath: '', centerY: 0, xTicks: [] as { label: string; x: number }[], yTicks: [] as number[] };
+      return { xScale: () => 0, yScale: () => 0, linePath: '', uclPath: '', lclPath: '', uclIndPath: '', lclIndPath: '', centerY: 0, xTicks: [] as { label: string; x: number }[], yTicks: [] as number[], visibleIndices: new Set<number>() };
     }
 
     const times = points.map((pt) => new Date(pt.date).getTime());
@@ -120,7 +115,11 @@ export default function LaneyUChart({ points, ubar, sigma_z, k }: LaneyUChartPro
       }
     }
 
-    return { xScale, yScale, linePath, uclPath, lclPath, uclIndPath, lclIndPath, centerY, xTicks, yTicks };
+    const oocIndices = new Set<number>();
+    points.forEach((pt, i) => { if (pt.out_of_control) oocIndices.add(i); });
+    const visibleIndices = logDensityIndices(points.length, MAX_CHART_DOTS, oocIndices);
+
+    return { xScale, yScale, linePath, uclPath, lclPath, uclIndPath, lclIndPath, centerY, xTicks, yTicks, visibleIndices };
   }, [points, ubar, innerW, innerH]);
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -219,26 +218,29 @@ export default function LaneyUChart({ points, ubar, sigma_z, k }: LaneyUChartPro
               </text>
             ))}
 
-            <path d={uclPath} className={`${styles.limitLine} ${styles.uclLine} ${animated ? styles.limitVisible : ''}`} />
-            <path d={lclPath} className={`${styles.limitLine} ${styles.lclLine} ${animated ? styles.limitVisible : ''}`} />
+            <path d={uclPath} className={`${styles.limitLine} ${styles.uclLine} ${styles.limitVisible}`} />
+            <path d={lclPath} className={`${styles.limitLine} ${styles.lclLine} ${styles.limitVisible}`} />
 
             <line x1={0} y1={centerY} x2={innerW} y2={centerY} className={styles.centerLine} />
             <text x={innerW + 4} y={centerY} className={styles.limitLabel}>ū</text>
 
-            <path d={uclIndPath} className={`${styles.indLine} ${animated ? styles.indLineVisible : ''}`} />
-            <path d={lclIndPath} className={`${styles.indLine} ${animated ? styles.indLineVisible : ''}`} />
+            <path d={uclIndPath} className={`${styles.indLine} ${styles.indLineVisible}`} />
+            <path d={lclIndPath} className={`${styles.indLine} ${styles.indLineVisible}`} />
 
-            <path d={linePath} className={`${styles.dataLine} ${animated ? styles.dataLineVisible : ''}`} />
+            <path d={linePath} className={`${styles.dataLine} ${styles.dataLineVisible}`} />
 
-            {points.map((pt, i) => (
-              <circle
-                key={i}
-                cx={xScale(new Date(pt.date).getTime())}
-                cy={yScale(pt.u)}
-                r={points.length <= 30 ? 4.5 : 3}
-                className={`${pt.out_of_control ? styles.dotOoc : styles.dot} ${animated ? styles.dotVisible : ''}`}
-              />
-            ))}
+            {/* Data points — log-density thinned, OOC always shown */}
+            {points.map((pt, i) =>
+              visibleIndices.has(i) ? (
+                <circle
+                  key={i}
+                  cx={xScale(new Date(pt.date).getTime())}
+                  cy={yScale(pt.u)}
+                  r={points.length <= 30 ? 4.5 : 3}
+                  className={`${pt.out_of_control ? styles.dotOoc : styles.dot} ${styles.dotVisible}`}
+                />
+              ) : null,
+            )}
           </g>
 
           {tooltip && (

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { SuccessHistoryPoint } from '../lib/api';
+import { logDensityIndices, MAX_CHART_DOTS } from '../lib/chartUtils';
 import styles from './AcceptanceChart.module.css';
 
 interface SuccessHistoryChartProps {
@@ -21,12 +22,6 @@ function formatTooltipDate(iso: string): string {
 export default function SuccessHistoryChart({ points }: SuccessHistoryChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; point: SuccessHistoryPoint } | null>(null);
-  const [animated, setAnimated] = useState(false);
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setAnimated(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
 
   const margin = { top: 20, right: 44, bottom: 44, left: 52 };
   const width = 700;
@@ -34,9 +29,9 @@ export default function SuccessHistoryChart({ points }: SuccessHistoryChartProps
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
 
-  const { xScale, yScale, xTicks } = useMemo(() => {
+  const { xScale, yScale, xTicks, visibleIndices } = useMemo(() => {
     if (points.length === 0) {
-      return { xScale: () => 0, yScale: () => 0, xTicks: [] as { label: string; x: number }[] };
+      return { xScale: () => 0, yScale: () => 0, xTicks: [] as { label: string; x: number }[], visibleIndices: new Set<number>() };
     }
 
     const times = points.map((p) => new Date(p.date).getTime());
@@ -63,7 +58,9 @@ export default function SuccessHistoryChart({ points }: SuccessHistoryChartProps
       }
     }
 
-    return { xScale, yScale, xTicks };
+    const visibleIndices = logDensityIndices(points.length, MAX_CHART_DOTS);
+
+    return { xScale, yScale, xTicks, visibleIndices };
   }, [points, innerW, innerH]);
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -138,18 +135,18 @@ export default function SuccessHistoryChart({ points }: SuccessHistoryChartProps
               </text>
             ))}
 
-            {/* Data points */}
-            {points.map((p, i) => (
-              <circle
-                key={i}
-                cx={xScale(new Date(p.date).getTime())}
-                cy={yScale(p.value)}
-                r={points.length <= 30 ? 6 : 4}
-                fill={p.value === 1 ? '#22c55e' : '#ef4444'}
-                opacity={animated ? 1 : 0}
-                style={{ transition: `opacity 0.4s ease ${i * 0.03}s` }}
-              />
-            ))}
+            {/* Data points — log-density thinned */}
+            {points.map((p, i) =>
+              visibleIndices.has(i) ? (
+                <circle
+                  key={i}
+                  cx={xScale(new Date(p.date).getTime())}
+                  cy={yScale(p.value)}
+                  r={points.length <= 30 ? 6 : 4}
+                  fill={p.value === 1 ? '#22c55e' : '#ef4444'}
+                />
+              ) : null,
+            )}
           </g>
 
           {/* Tooltip crosshair */}

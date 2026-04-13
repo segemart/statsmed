@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { AcceptanceHistoryPoint } from '../lib/api';
+import { logDensityIndices, MAX_CHART_DOTS } from '../lib/chartUtils';
 import styles from './AcceptanceChart.module.css';
 
 interface AcceptanceChartProps {
@@ -26,12 +27,6 @@ function formatTooltipDate(iso: string): string {
 export default function AcceptanceChart({ points }: AcceptanceChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; point: AcceptanceHistoryPoint } | null>(null);
-  const [animated, setAnimated] = useState(false);
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setAnimated(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
 
   const margin = { top: 20, right: 44, bottom: 44, left: 52 };
   const width = 700;
@@ -39,9 +34,9 @@ export default function AcceptanceChart({ points }: AcceptanceChartProps) {
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
 
-  const { xScale, yScale, linePath, areaPath, xTicks, yTicks } = useMemo(() => {
+  const { xScale, yScale, linePath, areaPath, xTicks, yTicks, visibleIndices } = useMemo(() => {
     if (points.length === 0) {
-      return { xScale: () => 0, yScale: () => 0, linePath: '', areaPath: '', xTicks: [], yTicks: [] };
+      return { xScale: () => 0, yScale: () => 0, linePath: '', areaPath: '', xTicks: [], yTicks: [], visibleIndices: new Set<number>() };
     }
 
     const times = points.map((p) => new Date(p.date).getTime());
@@ -81,7 +76,9 @@ export default function AcceptanceChart({ points }: AcceptanceChartProps) {
       }
     }
 
-    return { xScale, yScale, linePath, areaPath, xTicks, yTicks };
+    const visibleIndices = logDensityIndices(points.length, MAX_CHART_DOTS);
+
+    return { xScale, yScale, linePath, areaPath, xTicks, yTicks, visibleIndices };
   }, [points, innerW, innerH]);
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -154,27 +151,23 @@ export default function AcceptanceChart({ points }: AcceptanceChartProps) {
             ))}
 
             {/* Area fill */}
-            <path
-              d={areaPath}
-              className={`${styles.area} ${animated ? styles.areaVisible : ''}`}
-            />
+            <path d={areaPath} className={`${styles.area} ${styles.areaVisible}`} />
 
             {/* Line */}
-            <path
-              d={linePath}
-              className={`${styles.line} ${animated ? styles.lineVisible : ''}`}
-            />
+            <path d={linePath} className={`${styles.line} ${styles.lineVisible}`} />
 
-            {/* Data points */}
-            {points.map((p, i) => (
-              <circle
-                key={i}
-                cx={xScale(new Date(p.date).getTime())}
-                cy={yScale(p.accepted_pct)}
-                r={points.length <= 30 ? 4 : 2.5}
-                className={`${styles.dot} ${animated ? styles.dotVisible : ''}`}
-              />
-            ))}
+            {/* Data points — log-density thinned */}
+            {points.map((p, i) =>
+              visibleIndices.has(i) ? (
+                <circle
+                  key={i}
+                  cx={xScale(new Date(p.date).getTime())}
+                  cy={yScale(p.accepted_pct)}
+                  r={points.length <= 30 ? 4 : 2.5}
+                  className={`${styles.dot} ${styles.dotVisible}`}
+                />
+              ) : null,
+            )}
           </g>
 
           {/* Tooltip crosshair */}
