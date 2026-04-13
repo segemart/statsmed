@@ -97,15 +97,11 @@
 
 .limitLine {
   fill: none;
-  stroke-width: 1.5;
+  stroke-width: 1.2;
   stroke-dasharray: 3 4;
-  stroke-dashoffset: 500;
-  transition: stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.limitVisible {
-  stroke-dashoffset: 0;
-}
+.limitVisible {}
 
 .uclLine {
   stroke: rgba(168, 130, 255, 0.6);
@@ -120,49 +116,36 @@
 .indLine {
   fill: none;
   stroke: rgba(239, 68, 68, 0.7);
-  stroke-width: 1.5;
+  stroke-width: 1.2;
   stroke-dasharray: 5 3;
-  stroke-dashoffset: 500;
-  transition: stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.indLineVisible {
-  stroke-dashoffset: 0;
-}
+.indLineVisible {}
 
 /* Observed data line */
 
 .dataLine {
   fill: none;
   stroke: rgba(16, 185, 129, 0.85);
-  stroke-width: 2.5;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray: 2000;
-  stroke-dashoffset: 2000;
-  transition: stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.dataLineVisible {
-  stroke-dashoffset: 0;
-}
+.dataLineVisible {}
 
 /* Data dots */
 
 .dot {
   fill: rgba(16, 185, 129, 0.85);
   stroke: var(--bg-card);
-  stroke-width: 2;
-  opacity: 0;
-  transition: opacity 0.6s ease 0.8s;
+  stroke-width: 1.5;
 }
 
 .dotOoc {
   fill: rgba(239, 68, 68, 0.9);
   stroke: var(--bg-card);
-  stroke-width: 2;
-  opacity: 0;
-  transition: opacity 0.6s ease 0.8s;
+  stroke-width: 1.5;
 }
 
 .dotVisible {

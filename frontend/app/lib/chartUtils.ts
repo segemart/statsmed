@@ -42,3 +42,11 @@ export function logDensityIndices(
 }
 
 export const MAX_CHART_DOTS = 100;
+
+/** Thinner strokes for dense series, normal for sparse ones. */
+export function adaptiveStrokeWidth(pointCount: number, base = 2): number {
+  if (pointCount <= 40) return base;
+  if (pointCount <= 100) return base * 0.75;
+  if (pointCount <= 300) return base * 0.5;
+  return base * 0.35;
+}

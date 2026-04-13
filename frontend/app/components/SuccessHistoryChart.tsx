@@ -58,7 +58,12 @@ export default function SuccessHistoryChart({ points }: SuccessHistoryChartProps
       }
     }
 
-    const visibleIndices = logDensityIndices(points.length, MAX_CHART_DOTS);
+    const successes = points.filter((p) => p.value === 1).length;
+    const failures = points.length - successes;
+    const minorityValue = failures <= successes ? 0 : 1;
+    const mustKeep = new Set<number>();
+    points.forEach((p, i) => { if (p.value === minorityValue) mustKeep.add(i); });
+    const visibleIndices = logDensityIndices(points.length, MAX_CHART_DOTS, mustKeep);
 
     return { xScale, yScale, xTicks, visibleIndices };
   }, [points, innerW, innerH]);

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { AcceptanceHistoryPoint } from '../lib/api';
-import { logDensityIndices, MAX_CHART_DOTS } from '../lib/chartUtils';
+import { logDensityIndices, MAX_CHART_DOTS, adaptiveStrokeWidth } from '../lib/chartUtils';
 import styles from './AcceptanceChart.module.css';
 
 interface AcceptanceChartProps {
@@ -154,7 +154,8 @@ export default function AcceptanceChart({ points }: AcceptanceChartProps) {
             <path d={areaPath} className={`${styles.area} ${styles.areaVisible}`} />
 
             {/* Line */}
-            <path d={linePath} className={`${styles.line} ${styles.lineVisible}`} />
+            <path d={linePath} className={`${styles.line} ${styles.lineVisible}`}
+              style={{ strokeWidth: adaptiveStrokeWidth(points.length) }} />
 
             {/* Data points — log-density thinned */}
             {points.map((p, i) =>

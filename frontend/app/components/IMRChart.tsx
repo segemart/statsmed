@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { IMRChartPoint } from '../lib/api';
-import { logDensityIndices, MAX_CHART_DOTS } from '../lib/chartUtils';
+import { logDensityIndices, MAX_CHART_DOTS, adaptiveStrokeWidth } from '../lib/chartUtils';
 import styles from './LaneyPChart.module.css';
 
 interface IMRChartProps {
@@ -222,13 +222,16 @@ export default function IMRChart({ points, x_bar, mr_bar, sigma, k }: IMRChartPr
               </text>
             ))}
 
-            <path d={uclPath} className={`${styles.limitLine} ${styles.uclLine} ${styles.limitVisible}`} />
-            <path d={lclPath} className={`${styles.limitLine} ${styles.lclLine} ${styles.limitVisible}`} />
+            <path d={uclPath} className={`${styles.limitLine} ${styles.uclLine} ${styles.limitVisible}`}
+              style={{ strokeWidth: adaptiveStrokeWidth(points.length, 1.2) }} />
+            <path d={lclPath} className={`${styles.limitLine} ${styles.lclLine} ${styles.limitVisible}`}
+              style={{ strokeWidth: adaptiveStrokeWidth(points.length, 1.2) }} />
 
             <line x1={0} y1={centerY} x2={innerW} y2={centerY} className={styles.centerLine} />
             <text x={innerW + 4} y={centerY} className={styles.limitLabel}>x&#772;</text>
 
-            <path d={linePath} className={`${styles.dataLine} ${styles.dataLineVisible}`} />
+            <path d={linePath} className={`${styles.dataLine} ${styles.dataLineVisible}`}
+              style={{ strokeWidth: adaptiveStrokeWidth(points.length) }} />
 
             {/* Data points — log-density thinned, OOC always shown */}
             {points.map((pt, i) =>
