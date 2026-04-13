@@ -24,7 +24,7 @@ export function logDensityIndices(
   const indices = new Set<number>();
 
   if (mustKeep) {
-    for (const idx of mustKeep) indices.add(idx);
+    mustKeep.forEach((idx) => indices.add(idx));
   }
 
   indices.add(0);
