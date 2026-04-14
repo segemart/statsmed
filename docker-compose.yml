@@ -1,9 +1,10 @@
 # Statsmed: PostgreSQL + FastAPI backend + Next.js frontend
 # Run everywhere: docker compose up -d --build
 # Each environment provides its own docker-compose.override.yml (auto-loaded, gitignored).
+# Service names are prefixed with sm- to avoid DNS collisions on shared Docker networks.
 
 services:
-  postgres:
+  sm-postgres:
     image: postgres:15-alpine
     container_name: statsmed_postgres
     environment:
@@ -18,21 +19,21 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
+  sm-backend:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: statsmed_backend
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-statsmed}:${POSTGRES_PASSWORD:-statsmed}@postgres:5432/${POSTGRES_DB:-statsmed}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-statsmed}:${POSTGRES_PASSWORD:-statsmed}@sm-postgres:5432/${POSTGRES_DB:-statsmed}
       JWT_SECRET: ${JWT_SECRET:-statsmed-dev-secret-change-in-production}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       ENV: ${ENV:-development}
     depends_on:
-      postgres:
+      sm-postgres:
         condition: service_healthy
 
-  frontend:
+  sm-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -44,7 +45,7 @@ services:
       NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     depends_on:
-      - backend
+      - sm-backend
 
 volumes:
   statsmed_pgdata:
