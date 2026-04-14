@@ -214,10 +214,26 @@ export default function Dashboard() {
         <>
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Data preview — {preview.original_filename}</h2>
-            <div
-              className={styles.previewTable}
-              dangerouslySetInnerHTML={{ __html: preview.preview_html }}
-            />
+            <div className={styles.previewTable}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    {preview.columns.map((col) => (
+                      <th key={col}>{col}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.preview_rows.map((row, i) => (
+                    <tr key={i}>
+                      {row.map((cell, j) => (
+                        <td key={j}>{cell}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
 
           <section className={styles.section}>

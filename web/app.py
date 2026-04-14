@@ -107,10 +107,14 @@ def create_app(test_config=None):
         HISTORY[path] = []
         return _render_upload(path, f.filename)
 
+    def _is_safe_path(filepath: str) -> bool:
+        """Ensure filepath is within the upload directory."""
+        return os.path.realpath(filepath).startswith(os.path.realpath(UPLOAD_DIR))
+
     @app.route('/clear', methods=['POST'])
     def clear():
         filepath = request.form.get('filepath')
-        if filepath:
+        if filepath and _is_safe_path(filepath):
             logger.info(f"File removed: {filepath}")
             HISTORY.pop(filepath, None)
             DELIMITERS.pop(filepath, None)
@@ -122,7 +126,7 @@ def create_app(test_config=None):
     def run():
         filepath = request.form.get('filepath')
         filename = request.form.get('filename', '')
-        if not filepath or not os.path.exists(filepath):
+        if not filepath or not _is_safe_path(filepath) or not os.path.exists(filepath):
             return redirect('/')
         test_id = request.form['test']
         test = TESTS[test_id]
@@ -219,11 +223,13 @@ def create_app(test_config=None):
         filepath = request.form.get('filepath')
         filename = request.form.get('filename', '')
         idx = int(request.form.get('idx', -1))
+        if not filepath or not _is_safe_path(filepath):
+            return redirect('/')
         history = HISTORY.get(filepath, [])
         if 0 <= idx < len(history):
             logger.info(f"Result deleted: index {idx} for {filename}")
             history.pop(idx)
-        if not filepath or not os.path.exists(filepath):
+        if not os.path.exists(filepath):
             return redirect('/')
         return _render_upload(filepath, filename)
 
@@ -231,6 +237,8 @@ def create_app(test_config=None):
     def download():
         filepath = request.form.get('filepath')
         filename = request.form.get('filename', 'data')
+        if not filepath or not _is_safe_path(filepath):
+            return redirect('/')
         history = HISTORY.get(filepath, [])
         logger.info(f"PDF download requested for '{filename}' ({len(history)} results)")
 

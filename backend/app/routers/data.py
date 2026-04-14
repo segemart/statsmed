@@ -63,7 +63,7 @@ class PreviewResponse(BaseModel):
     original_filename: str
     columns: list[str]
     col_types: dict
-    preview_html: str
+    preview_rows: list[list[str]]
     results: list[dict]
 
 
@@ -156,7 +156,7 @@ def get_preview(
     df = read_df(data_file.stored_path, data_file.csv_delimiter)
     columns = df.columns.tolist()
     col_types = {c: "numeric" if df[c].dtype.kind in "iufb" else "string" for c in columns}
-    preview_html = df.head(10).to_html(classes="table", index=False)
+    preview_rows = df.head(10).fillna("").astype(str).values.tolist()
 
     results = []
     for r in (
@@ -179,7 +179,7 @@ def get_preview(
         "original_filename": data_file.original_filename,
         "columns": columns,
         "col_types": col_types,
-        "preview_html": preview_html,
+        "preview_rows": preview_rows,
         "results": results,
     }
 

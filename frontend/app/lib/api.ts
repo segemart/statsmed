@@ -145,7 +145,7 @@ export interface PreviewResponse {
   original_filename: string;
   columns: string[];
   col_types: Record<string, string>;
-  preview_html: string;
+  preview_rows: string[][];
   results: PreviewResult[];
 }
 
