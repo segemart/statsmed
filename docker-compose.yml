@@ -1,6 +1,6 @@
 # Statsmed: PostgreSQL + FastAPI backend + Next.js frontend
 # Run everywhere: docker compose up -d --build
-# Local dev ports come from docker-compose.override.yml (auto-loaded, gitignored).
+# Each environment provides its own docker-compose.override.yml (auto-loaded, gitignored).
 
 services:
   postgres:
@@ -28,9 +28,6 @@ services:
       JWT_SECRET: ${JWT_SECRET:-statsmed-dev-secret-change-in-production}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       ENV: ${ENV:-development}
-    networks:
-      - default
-      - caddy_net
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,15 +43,8 @@ services:
     environment:
       NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
-    networks:
-      - default
-      - caddy_net
     depends_on:
       - backend
 
 volumes:
   statsmed_pgdata:
-
-networks:
-  caddy_net:
-    external: true
