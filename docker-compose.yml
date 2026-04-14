@@ -1,6 +1,7 @@
 # Statsmed: PostgreSQL + FastAPI backend + Next.js frontend (login, register, saved data)
-# Run: docker compose up -d
-# Frontend: http://localhost:3000   Backend API: http://localhost:8000
+#
+# Local dev:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Production: docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
 
 services:
   postgres:
@@ -28,8 +29,6 @@ services:
       JWT_SECRET: ${JWT_SECRET:-statsmed-dev-secret-change-in-production}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       ENV: ${ENV:-development}
-    ports:
-      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,8 +44,6 @@ services:
     environment:
       NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
-    ports:
-      - "3000:3000"
     depends_on:
       - backend
 

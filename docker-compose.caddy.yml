@@ -1,18 +1,15 @@
 # Use with docker-compose.yml when running behind Caddy on the server.
 # Adds caddy_net so Caddy can reverse-proxy to backend and frontend.
-# Removes host port bindings — traffic goes through Caddy only.
 # Prerequisite: docker network create caddy_net
 #
 # Run: docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
 
 services:
   backend:
-    ports: !reset []
     networks:
       - default
       - caddy_net
   frontend:
-    ports: !reset []
     networks:
       - default
       - caddy_net
