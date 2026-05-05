@@ -19,4 +19,4 @@ statsmed.egg-info
 web/tmp/
 .env
 docker-compose.override.yml
-RSNAAbstrace/
+RSNAAbstract/
